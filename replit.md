@@ -121,6 +121,7 @@ The application provides a Netflix-style interface for browsing legal GPTs, user
 - June 25, 2025: Added files field to GPT creation for reference documents
 - June 25, 2025: Implemented internal chat system with OpenAI integration and agent switching capabilities
 - June 25, 2025: Added home button to chat screen for easy navigation back to main page
+- June 25, 2025: Implemented separate message histories for each agent to maintain context per GPT
 
 ## User Preferences
 

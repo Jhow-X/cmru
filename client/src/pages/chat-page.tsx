@@ -28,7 +28,7 @@ interface ChatResponse {
 }
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messagesByGpt, setMessagesByGpt] = useState<Record<number, ChatMessage[]>>({});
   const [inputMessage, setInputMessage] = useState("");
   const [selectedGptId, setSelectedGptId] = useState<number | null>(null);
   const [isTyping, setIsTyping] = useState(false);
@@ -75,7 +75,7 @@ export default function ChatPage() {
       
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: ChatResponse) => {
       const assistantMessage: ChatMessage = {
         id: Date.now().toString() + "-assistant",
         role: "assistant",
@@ -83,7 +83,10 @@ export default function ChatPage() {
         timestamp: new Date(),
         gptId: data.gptId,
       };
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessagesByGpt(prev => ({
+        ...prev,
+        [data.gptId]: [...(prev[data.gptId] || []), assistantMessage]
+      }));
       setIsTyping(false);
     },
     onError: (error: Error) => {
@@ -97,10 +100,13 @@ export default function ChatPage() {
     },
   });
 
+  // Get current messages for selected GPT
+  const currentMessages = selectedGptId ? messagesByGpt[selectedGptId] || [] : [];
+
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [currentMessages]);
 
   const handleSendMessage = () => {
     if (!inputMessage.trim() || !selectedGptId) {
@@ -121,7 +127,10 @@ export default function ChatPage() {
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessagesByGpt(prev => ({
+      ...prev,
+      [selectedGptId]: [...(prev[selectedGptId] || []), userMessage]
+    }));
     setIsTyping(true);
     
     chatMutation.mutate({
@@ -140,7 +149,12 @@ export default function ChatPage() {
   };
 
   const clearChat = () => {
-    setMessages([]);
+    if (selectedGptId) {
+      setMessagesByGpt(prev => ({
+        ...prev,
+        [selectedGptId]: []
+      }));
+    }
   };
 
   const selectedGpt = gpts.find(gpt => gpt.id === selectedGptId);
@@ -256,7 +270,7 @@ export default function ChatPage() {
           {/* Messages Area */}
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-4">
-              {messages.length === 0 ? (
+              {currentMessages.length === 0 ? (
                 <div className="text-center py-8">
                   <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">
@@ -266,7 +280,7 @@ export default function ChatPage() {
                   </p>
                 </div>
               ) : (
-                messages.map((message) => (
+                currentMessages.map((message: ChatMessage) => (
                   <div
                     key={message.id}
                     className={`flex gap-3 ${
