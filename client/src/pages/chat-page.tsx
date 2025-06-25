@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Loader2, Send, Bot, User, RefreshCw, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import Header from "@/components/layout/header";
 import type { Gpt, ChatMessage as DBChatMessage } from "@shared/schema";
 
 interface ChatResponse {
@@ -159,54 +160,49 @@ export default function ChatPage() {
 
   const selectedGpt = gpts.find(gpt => gpt.id === selectedGptId);
 
-  return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      {/* Header with Home Button */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Chat com GPTs</h1>
-        <Button
-          variant="outline"
-          onClick={() => setLocation("/")}
-          className="flex items-center gap-2"
-        >
-          <Home className="h-4 w-4" />
-          Início
-        </Button>
-      </div>
+  // Set document title
+  useEffect(() => {
+    document.title = "GPT da Câmara Regional de Caruaru do TJPE - Chat";
+  }, []);
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
-        {/* Agent Selection Sidebar */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-lg">Agentes Disponíveis</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[60vh]">
-              <div className="space-y-2">
-                {gptsLoading ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  </div>
-                ) : (
-                  gpts.map((gpt) => (
-                    <Button
-                      key={gpt.id}
-                      variant={selectedGptId === gpt.id ? "default" : "ghost"}
-                      className="w-full justify-start text-left h-auto p-3"
-                      onClick={() => setSelectedGptId(gpt.id)}
-                    >
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium">{gpt.title}</span>
-                        <span className="text-xs text-muted-foreground truncate max-w-full">
-                          {gpt.description}
-                        </span>
-                        <Badge variant="secondary" className="mt-1 text-xs">
-                          {gpt.category || "Geral"}
-                        </Badge>
-                      </div>
-                    </Button>
-                  ))
-                )}
+  return (
+    <div className="flex flex-col min-h-screen bg-primary-bg">
+      <Header />
+      
+      <div className="container mx-auto p-6 max-w-6xl flex-1">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
+          {/* Agent Selection Sidebar */}
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle className="text-lg">Agentes Disponíveis</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[60vh]">
+                <div className="space-y-2">
+                  {gptsLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : (
+                    gpts.map((gpt) => (
+                      <Button
+                        key={gpt.id}
+                        variant={selectedGptId === gpt.id ? "default" : "ghost"}
+                        className="w-full justify-start text-left h-auto p-3"
+                        onClick={() => setSelectedGptId(gpt.id)}
+                      >
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{gpt.title}</span>
+                          <span className="text-xs text-muted-foreground truncate max-w-full">
+                            {gpt.description}
+                          </span>
+                          <Badge variant="secondary" className="mt-1 text-xs">
+                            {gpt.category || "Geral"}
+                          </Badge>
+                        </div>
+                      </Button>
+                    ))
+                  )}
               </div>
             </ScrollArea>
           </CardContent>
@@ -363,6 +359,7 @@ export default function ChatPage() {
             </div>
           </div>
         </Card>
+        </div>
       </div>
     </div>
   );
