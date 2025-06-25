@@ -29,6 +29,7 @@ export const gpts = pgTable("gpts", {
   systemInstructions: text("system_instructions").notNull(),
   model: text("model").notNull().default("gpt-4"),
   temperature: integer("temperature").default(70), // Store as integer (0-100)
+  files: text("files").array().default([]),
   creatorName: text("creator_name"),
   imageUrl: text("image_url"),
   category: text("category").notNull(),
@@ -53,8 +54,8 @@ export const usageLogs = pgTable("usage_logs", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
   gptId: integer("gpt_id").notNull().references(() => gpts.id),
-  prompt: text("prompt").notNull(),
-  response: text("response").notNull(),
+  action: text("action").notNull(),
+  details: text("details"),
   timestamp: timestamp("timestamp").defaultNow(),
 });
 

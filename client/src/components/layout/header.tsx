@@ -85,6 +85,13 @@ export default function Header() {
                 </Link>
               </li>
               <li>
+                <Link href="/chat">
+                  <a className={`hover:text-accent transition ${location === '/chat' ? 'text-accent' : ''}`}>
+                    Chat
+                  </a>
+                </Link>
+              </li>
+              <li>
                 <Link href="/favorites">
                   <a className={`hover:text-accent transition ${location === '/favorites' ? 'text-accent' : ''}`}>
                     Favoritos

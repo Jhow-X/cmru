@@ -97,19 +97,9 @@ export default function GptCard({ gpt, badge, gridView = false }: GptCardProps) 
     }
   };
   
-  // Handle card click - track view and redirect
+  // Handle card click - redirect to internal chat
   const handleCardClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    
-    // Check if there's a valid URL
-    if (!gpt.gptUrl || !gpt.gptUrl.startsWith('http')) {
-      toast({
-        title: "URL inválido",
-        description: "Este GPT não possui um URL válido para acessar no ChatGPT.",
-        variant: "destructive",
-      });
-      return;
-    }
     
     // Log view before redirecting
     const logView = async () => {
@@ -119,8 +109,8 @@ export default function GptCard({ gpt, badge, gridView = false }: GptCardProps) 
         console.error("Failed to log view:", error);
       }
       
-      // Redirect to GPT URL (open in new tab)
-      window.open(gpt.gptUrl, '_blank');
+      // Redirect to internal chat
+      window.location.href = `/chat?gpt=${gpt.id}`;
     };
     
     logView();
@@ -253,7 +243,7 @@ export default function GptCard({ gpt, badge, gridView = false }: GptCardProps) 
                 className="bg-accent hover:bg-accent-hover text-white text-sm py-1 px-3 h-8 rounded flex items-center gap-1"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (gpt.gptUrl) window.open(gpt.gptUrl, '_blank');
+                  window.location.href = `/chat?gpt=${gpt.id}`;
                 }}
               >
                 <ExternalLink size={12} />

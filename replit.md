@@ -118,6 +118,8 @@ The application provides a Netflix-style interface for browsing legal GPTs, user
 ## Changelog
 - June 25, 2025: Initial setup and migration to Replit
 - June 25, 2025: Added new GPT creation fields (name, system instructions, model, temperature) to admin interface
+- June 25, 2025: Added files field to GPT creation for reference documents
+- June 25, 2025: Implemented internal chat system with OpenAI integration and agent switching capabilities
 
 ## User Preferences
 

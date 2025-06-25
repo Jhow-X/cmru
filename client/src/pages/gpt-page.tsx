@@ -107,22 +107,22 @@ export default function GptPage() {
     }
   };
 
-  // Open GPT on OpenAI platform
-  const openGptUrl = async () => {
-    if (gpt?.gptUrl && gpt.gptUrl.startsWith('http')) {
+  // Open internal chat with GPT
+  const openGptChat = async () => {
+    if (gpt) {
       try {
         // Log view
         await apiRequest("POST", `/api/gpts/${gptId}/view`, {});
-        // Open URL in new tab
-        window.open(gpt.gptUrl, '_blank');
+        // Redirect to internal chat
+        window.location.href = `/chat?gpt=${gpt.id}`;
       } catch (error) {
         console.error("Failed to log view:", error);
-        window.open(gpt.gptUrl, '_blank');
+        window.location.href = `/chat?gpt=${gpt.id}`;
       }
     } else {
       toast({
-        title: "URL inválido",
-        description: "Este GPT não possui um URL válido para acessar no ChatGPT.",
+        title: "GPT não encontrado",
+        description: "Este GPT não está disponível.",
         variant: "destructive",
       });
     }
@@ -247,13 +247,13 @@ export default function GptPage() {
                         <div className="text-center mt-4">
                           <Button 
                             className="bg-accent hover:bg-accent-hover text-white py-2 px-4 rounded-md w-full md:w-auto flex items-center justify-center gap-2"
-                            onClick={openGptUrl}
+                            onClick={openGptChat}
                           >
-                            <ExternalLink className="h-4 w-4" />
-                            Abrir este GPT no ChatGPT
+                            <MessageSquare className="h-4 w-4" />
+                            Conversar com este GPT
                           </Button>
                           <p className="text-xs text-neutral-400 mt-2">
-                            Você será redirecionado para a plataforma OpenAI para utilizar este GPT
+                            Você será direcionado para o chat interno para conversar com este GPT
                           </p>
                         </div>
                       </div>

@@ -13,6 +13,7 @@ import MyGptsPage from "@/pages/my-gpts-page";
 import ProfilePage from "@/pages/profile-page";
 import SettingsPage from "@/pages/settings-page";
 import AboutPage from "@/pages/about-page";
+import ChatPage from "@/pages/chat-page";
 import CategoriesPage from "@/pages/categories-page";
 import CategoryPage from "@/pages/category-page";
 import { ProtectedRoute } from "./lib/protected-route";
@@ -27,8 +28,9 @@ function Router() {
       <ProtectedRoute path="/" component={HomePage} />
       <ProtectedRoute path="/favorites" component={FavoritesPage} />
       <ProtectedRoute path="/my-gpts" component={MyGptsPage} />
-      <ProtectedRoute path="/profile" component={ProfilePage} />
-      <ProtectedRoute path="/settings" component={SettingsPage} />
+      <ProtectedRoute path="/profile" component={() => <ProfilePage />} />
+      <ProtectedRoute path="/chat" component={() => <ChatPage />} />
+      <ProtectedRoute path="/settings" component={() => <SettingsPage />} />
       <ProtectedRoute path="/admin" component={AdminPage} adminOnly />
       <ProtectedRoute path="/gpt/:id" component={GptPage} />
       <ProtectedRoute path="/categories" component={CategoriesPage} />

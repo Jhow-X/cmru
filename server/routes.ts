@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
-import openai, { getAvailableModels } from "./openai";
+import openai, { getAvailableModels, generateGptResponse } from "./openai";
 import { 
   insertGptSchema, 
   insertFavoriteSchema, 
@@ -456,6 +456,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao remover favorito:", error);
       res.status(500).json({ message: "Erro ao remover favorito" });
+    }
+  });
+
+  // Chat with GPT route
+  app.post("/api/chat", isAuthenticated, async (req, res) => {
+    try {
+      const { message, gptId } = req.body;
+      
+      if (!message || !gptId) {
+        return res.status(400).json({ message: "Mensagem e ID do GPT são obrigatórios" });
+      }
+      
+      // Get GPT configuration from database
+      const gpt = await storage.getGpt(gptId);
+      if (!gpt) {
+        return res.status(404).json({ message: "GPT não encontrado" });
+      }
+      
+      // Generate response using OpenAI with GPT configuration
+      const response = await generateGptResponse(
+        message,
+        gpt.systemInstructions,
+        gpt.model,
+        gpt.temperature || 70,
+        gpt.files || []
+      );
+      
+      // Log usage
+      await storage.createUsageLog({
+        userId: req.user!.id,
+        gptId: gptId,
+        action: "chat_message",
+        details: `Mensagem: ${message.substring(0, 100)}...`
+      });
+      
+      res.json({ 
+        message: response,
+        gptId: gptId 
+      });
+    } catch (error) {
+      console.error("Erro no chat:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Erro interno do servidor"
+      });
     }
   });
 
