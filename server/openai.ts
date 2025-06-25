@@ -73,9 +73,31 @@ export async function getLegalReferences(query: string): Promise<string> {
   return generateGptResponse(systemPrompt, query);
 }
 
+export async function getAvailableModels(): Promise<string[]> {
+  try {
+    const list = await openai.models.list();
+    const models: string[] = [];
+    
+    for await (const model of list) {
+      // Filter to only include GPT models that are commonly used
+      if (model.id.includes('gpt') && !model.id.includes('instruct') && !model.id.includes('babbage') && !model.id.includes('ada') && !model.id.includes('davinci')) {
+        models.push(model.id);
+      }
+    }
+    
+    // Sort models with newest first
+    return models.sort().reverse();
+  } catch (error) {
+    console.error("Erro ao obter modelos disponíveis:", error);
+    // Return fallback models if API fails
+    return ["gpt-4o", "gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"];
+  }
+}
+
 export default {
   generateGptResponse,
   analyzeLegalDocument,
   draftLegalResponse,
-  getLegalReferences
+  getLegalReferences,
+  getAvailableModels
 };

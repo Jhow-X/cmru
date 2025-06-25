@@ -36,7 +36,6 @@ export const gpts = pgTable("gpts", {
   views: integer("views").default(0),
   isFeatured: boolean("is_featured").default(false),
   isNew: boolean("is_new").default(false),
-  gptUrl: text("gpt_url").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   createdBy: integer("created_by").references(() => users.id),
 });

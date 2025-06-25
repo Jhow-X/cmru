@@ -90,6 +90,14 @@ export default function AdminPage() {
     queryKey: ["/api/categories"],
   });
 
+  // Fetch OpenAI models
+  const {
+    data: models = [],
+    isLoading: modelsLoading,
+  } = useQuery<string[]>({
+    queryKey: ["/api/openai/models"],
+  });
+
   // User form schema
   const userSchema = z.object({
     name: z.string().min(2, "Nome completo deve ter pelo menos 2 caracteres"),
@@ -109,7 +117,7 @@ export default function AdminPage() {
     temperature: z.number().min(0).max(100).default(70),
     category: z.string().min(1, "Categoria é obrigatória"),
     creatorName: z.string().optional(),
-    gptUrl: z.string().url("O link do GPT deve ser uma URL válida").min(10, "O link do GPT deve ter pelo menos 10 caracteres"),
+
     imageUrl: z.string().optional(),
     isFeatured: z.boolean().default(false),
     isNew: z.boolean().default(true),
@@ -144,11 +152,10 @@ export default function AdminPage() {
       description: "",
       name: "",
       systemInstructions: "",
-      model: "gpt-4",
+      model: "gpt-4o",
       temperature: 70,
       category: "",
       creatorName: "",
-      gptUrl: "",
       imageUrl: "",
       isFeatured: false,
       isNew: true,
@@ -1487,9 +1494,24 @@ export default function AdminPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="gpt-4">GPT-4</SelectItem>
-                          <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
-                          <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                          {modelsLoading ? (
+                            <div className="flex justify-center p-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            </div>
+                          ) : models.length > 0 ? (
+                            models.map((model) => (
+                              <SelectItem key={model} value={model}>
+                                {model}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <>
+                              <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                              <SelectItem value="gpt-4">GPT-4</SelectItem>
+                              <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+                              <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                            </>
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -1571,26 +1593,7 @@ export default function AdminPage() {
                 )}
               />
               
-              <FormField
-                control={gptForm.control}
-                name="gptUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Link do GPT</FormLabel>
-                    <FormControl>
-                      <Input 
-                        {...field} 
-                        placeholder="https://chat.openai.com/g/g-xxxxxxxxxx"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Insira o link completo do GPT da OpenAI (ex: https://chat.openai.com/g/g-...)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
+
               <FormField
                 control={gptForm.control}
                 name="imageUrl"

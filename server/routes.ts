@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
-import openai from "./openai";
+import openai, { getAvailableModels } from "./openai";
 import { 
   insertGptSchema, 
   insertFavoriteSchema, 
@@ -456,6 +456,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao remover favorito:", error);
       res.status(500).json({ message: "Erro ao remover favorito" });
+    }
+  });
+
+  // OpenAI models route
+  app.get("/api/openai/models", isAdmin, async (req, res) => {
+    try {
+      const models = await getAvailableModels();
+      res.json(models);
+    } catch (error) {
+      console.error("Erro ao buscar modelos:", error);
+      res.status(500).json({ message: "Erro ao buscar modelos disponíveis" });
     }
   });
   
