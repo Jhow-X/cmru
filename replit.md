@@ -124,6 +124,7 @@ The application provides a Netflix-style interface for browsing legal GPTs, user
 - June 25, 2025: Implemented separate message histories for each agent to maintain context per GPT
 - June 25, 2025: Completed database-backed persistent messaging system with PostgreSQL storage
 - June 25, 2025: Messages now survive page reloads and only clear when "Limpar" button is clicked
+- June 25, 2025: Enhanced user GPT creation capabilities - regular users now have full admin-level GPT creation features including system instructions, model selection, temperature settings, and file attachments
 
 ## User Preferences
 
