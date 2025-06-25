@@ -116,7 +116,8 @@ The application provides a Netflix-style interface for browsing legal GPTs, user
 - **Port Mapping**: Internal port 5000 mapped to external port 80
 
 ## Changelog
-- June 25, 2025. Initial setup
+- June 25, 2025: Initial setup and migration to Replit
+- June 25, 2025: Added new GPT creation fields (name, system instructions, model, temperature) to admin interface
 
 ## User Preferences
 

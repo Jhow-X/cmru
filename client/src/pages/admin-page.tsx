@@ -103,6 +103,10 @@ export default function AdminPage() {
   const gptSchema = z.object({
     title: z.string().min(2, "Título deve ter pelo menos 2 caracteres"),
     description: z.string().min(10, "Descrição deve ter pelo menos 10 caracteres"),
+    name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+    systemInstructions: z.string().min(10, "Instruções do sistema devem ter pelo menos 10 caracteres"),
+    model: z.string().min(1, "Modelo é obrigatório"),
+    temperature: z.number().min(0).max(100).default(70),
     category: z.string().min(1, "Categoria é obrigatória"),
     creatorName: z.string().optional(),
     gptUrl: z.string().url("O link do GPT deve ser uma URL válida").min(10, "O link do GPT deve ter pelo menos 10 caracteres"),
@@ -138,6 +142,10 @@ export default function AdminPage() {
     defaultValues: {
       title: "",
       description: "",
+      name: "",
+      systemInstructions: "",
+      model: "gpt-4",
+      temperature: 70,
       category: "",
       creatorName: "",
       gptUrl: "",
@@ -862,6 +870,10 @@ export default function AdminPage() {
                                   onClick={() => gptMutation.mutate({ 
                                     title: gpt.title,
                                     description: gpt.description,
+                                    name: gpt.name || "GPT",
+                                    systemInstructions: gpt.systemInstructions || "Você é um assistente útil.",
+                                    model: gpt.model || "gpt-4",
+                                    temperature: (gpt.temperature ?? 70) as number,
                                     category: gpt.category,
                                     creatorName: gpt.creatorName || undefined,
                                     gptUrl: gpt.gptUrl,
@@ -881,6 +893,10 @@ export default function AdminPage() {
                                   onClick={() => gptMutation.mutate({ 
                                     title: gpt.title,
                                     description: gpt.description,
+                                    name: gpt.name || "GPT",
+                                    systemInstructions: gpt.systemInstructions || "Você é um assistente útil.",
+                                    model: gpt.model || "gpt-4",
+                                    temperature: (gpt.temperature ?? 70) as number,
                                     category: gpt.category,
                                     creatorName: gpt.creatorName || undefined,
                                     gptUrl: gpt.gptUrl,
@@ -1420,6 +1436,88 @@ export default function AdminPage() {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={gptForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Nome do GPT" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={gptForm.control}
+                name="systemInstructions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Instruções do Sistema</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        {...field} 
+                        className="min-h-[100px]"
+                        placeholder="Você é um assistente especializado em..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={gptForm.control}
+                  name="model"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Modelo</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o modelo" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="gpt-4">GPT-4</SelectItem>
+                          <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+                          <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={gptForm.control}
+                  name="temperature"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Temperature (0-100)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          max="100" 
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 70)}
+                          placeholder="70"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <FormField
                 control={gptForm.control}

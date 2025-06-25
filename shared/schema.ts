@@ -25,6 +25,10 @@ export const gpts = pgTable("gpts", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
+  name: text("name").notNull(),
+  systemInstructions: text("system_instructions").notNull(),
+  model: text("model").notNull().default("gpt-4"),
+  temperature: integer("temperature").default(70), // Store as integer (0-100)
   creatorName: text("creator_name"),
   imageUrl: text("image_url"),
   category: text("category").notNull(),
