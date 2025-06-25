@@ -11,16 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Loader2, Send, Bot, User, RefreshCw, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import type { Gpt } from "@shared/schema";
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  gptId?: number;
-}
+import type { Gpt, ChatMessage as DBChatMessage } from "@shared/schema";
 
 interface ChatResponse {
   message: string;
@@ -28,26 +19,25 @@ interface ChatResponse {
 }
 
 export default function ChatPage() {
-  const [messagesByGpt, setMessagesByGpt] = useState<Record<number, ChatMessage[]>>({});
   const [inputMessage, setInputMessage] = useState("");
   const [selectedGptId, setSelectedGptId] = useState<number | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [location] = useLocation();
+  const [, setLocation] = useLocation();
 
-  // Extract GPT ID from URL parameters
+  // Initialize selectedGptId from URL search params
   useEffect(() => {
-    const params = new URLSearchParams(location.split('?')[1] || '');
-    const gptParam = params.get('gpt');
-    if (gptParam) {
-      const gptId = parseInt(gptParam);
+    const urlParams = new URLSearchParams(window.location.search);
+    const gptIdParam = urlParams.get('gptId');
+    if (gptIdParam) {
+      const gptId = parseInt(gptIdParam);
       if (!isNaN(gptId)) {
         setSelectedGptId(gptId);
       }
     }
-  }, [location]);
+  }, []);
 
   // Fetch all GPTs for agent selection
   const {
@@ -55,6 +45,16 @@ export default function ChatPage() {
     isLoading: gptsLoading,
   } = useQuery<Gpt[]>({
     queryKey: ["/api/gpts"],
+  });
+
+  // Fetch messages for the selected GPT
+  const {
+    data: currentMessages = [],
+    isLoading: messagesLoading,
+    refetch: refetchMessages,
+  } = useQuery<DBChatMessage[]>({
+    queryKey: ["/api/chat", selectedGptId, "messages"],
+    enabled: !!selectedGptId,
   });
 
   // Chat mutation
@@ -75,18 +75,9 @@ export default function ChatPage() {
       
       return response.json();
     },
-    onSuccess: (data: ChatResponse) => {
-      const assistantMessage: ChatMessage = {
-        id: Date.now().toString() + "-assistant",
-        role: "assistant",
-        content: data.message,
-        timestamp: new Date(),
-        gptId: data.gptId,
-      };
-      setMessagesByGpt(prev => ({
-        ...prev,
-        [data.gptId]: [...(prev[data.gptId] || []), assistantMessage]
-      }));
+    onSuccess: () => {
+      // Refetch messages to get the updated conversation from database
+      refetchMessages();
       setIsTyping(false);
     },
     onError: (error: Error) => {
@@ -100,8 +91,31 @@ export default function ChatPage() {
     },
   });
 
-  // Get current messages for selected GPT
-  const currentMessages = selectedGptId ? messagesByGpt[selectedGptId] || [] : [];
+  // Clear messages mutation
+  const clearMessagesMutation = useMutation({
+    mutationFn: async (gptId: number) => {
+      const response = await fetch(`/api/chat/${gptId}/messages`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error("Erro ao limpar mensagens");
+      }
+    },
+    onSuccess: () => {
+      refetchMessages();
+      toast({
+        title: "Conversa limpa",
+        description: "Todas as mensagens foram removidas",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao limpar conversa",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -120,17 +134,6 @@ export default function ChatPage() {
       return;
     }
 
-    const userMessage: ChatMessage = {
-      id: Date.now().toString() + "-user",
-      role: "user",
-      content: inputMessage.trim(),
-      timestamp: new Date(),
-    };
-
-    setMessagesByGpt(prev => ({
-      ...prev,
-      [selectedGptId]: [...(prev[selectedGptId] || []), userMessage]
-    }));
     setIsTyping(true);
     
     chatMutation.mutate({
@@ -150,10 +153,7 @@ export default function ChatPage() {
 
   const clearChat = () => {
     if (selectedGptId) {
-      setMessagesByGpt(prev => ({
-        ...prev,
-        [selectedGptId]: []
-      }));
+      clearMessagesMutation.mutate(selectedGptId);
     }
   };
 
@@ -165,68 +165,46 @@ export default function ChatPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Chat com GPTs</h1>
         <Button
-          onClick={() => window.location.href = '/'}
           variant="outline"
+          onClick={() => setLocation("/")}
           className="flex items-center gap-2"
         >
           <Home className="h-4 w-4" />
           Início
         </Button>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
         {/* Agent Selection Sidebar */}
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bot className="h-5 w-5" />
-              Agentes Disponíveis
-            </CardTitle>
+            <CardTitle className="text-lg">Agentes Disponíveis</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[calc(100vh-16rem)]">
-              <div className="space-y-3">
+            <ScrollArea className="h-[60vh]">
+              <div className="space-y-2">
                 {gptsLoading ? (
-                  <div className="flex justify-center py-4">
+                  <div className="flex items-center justify-center py-4">
                     <Loader2 className="h-6 w-6 animate-spin" />
                   </div>
                 ) : (
                   gpts.map((gpt) => (
-                    <div
+                    <Button
                       key={gpt.id}
-                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                        selectedGptId === gpt.id
-                          ? "bg-primary/10 border-primary"
-                          : "hover:bg-muted"
-                      }`}
+                      variant={selectedGptId === gpt.id ? "default" : "ghost"}
+                      className="w-full justify-start text-left h-auto p-3"
                       onClick={() => setSelectedGptId(gpt.id)}
                     >
-                      <div className="flex items-start gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback>
-                            {gpt.name.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">
-                            {gpt.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {gpt.description}
-                          </p>
-                          <div className="flex items-center gap-1 mt-1">
-                            <Badge variant="secondary" className="text-xs">
-                              {gpt.model}
-                            </Badge>
-                            {gpt.category && (
-                              <Badge variant="outline" className="text-xs">
-                                {gpt.category}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{gpt.title}</span>
+                        <span className="text-xs text-muted-foreground truncate max-w-full">
+                          {gpt.description}
+                        </span>
+                        <Badge variant="secondary" className="mt-1 text-xs">
+                          {gpt.category || "Geral"}
+                        </Badge>
                       </div>
-                    </div>
+                    </Button>
                   ))
                 )}
               </div>
@@ -234,34 +212,44 @@ export default function ChatPage() {
           </CardContent>
         </Card>
 
-        {/* Chat Interface */}
+        {/* Chat Area */}
         <Card className="lg:col-span-3 flex flex-col">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Bot className="h-6 w-6" />
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback>
+                    <Bot className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
                 <div>
                   <CardTitle className="text-lg">
-                    {selectedGpt ? selectedGpt.title : "Selecione um Agente"}
+                    {selectedGpt ? selectedGpt.title : "Selecione um agente"}
                   </CardTitle>
                   {selectedGpt && (
                     <p className="text-sm text-muted-foreground">
-                      {selectedGpt.model} • Temperatura: {selectedGpt.temperature || 70}%
+                      {selectedGpt.description}
                     </p>
                   )}
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearChat}
-                  className="gap-2"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Limpar
-                </Button>
-              </div>
+              {selectedGpt && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearChat}
+                    disabled={clearMessagesMutation.isPending}
+                  >
+                    {clearMessagesMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    Limpar
+                  </Button>
+                </div>
+              )}
             </div>
           </CardHeader>
           
@@ -280,60 +268,61 @@ export default function ChatPage() {
                   </p>
                 </div>
               ) : (
-                currentMessages.map((message: ChatMessage) => (
+                currentMessages.map((message: DBChatMessage) => (
                   <div
                     key={message.id}
                     className={`flex gap-3 ${
                       message.role === "user" ? "justify-end" : "justify-start"
                     }`}
                   >
-                    {message.role === "assistant" && (
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback>
-                          <Bot className="h-4 w-4" />
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                    
                     <div
-                      className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                        message.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted"
+                      className={`flex gap-3 max-w-[80%] ${
+                        message.role === "user" ? "flex-row-reverse" : "flex-row"
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-wrap">
-                        {message.content}
-                      </p>
-                      <p className="text-xs opacity-70 mt-1">
-                        {message.timestamp.toLocaleTimeString()}
-                      </p>
-                    </div>
-                    
-                    {message.role === "user" && (
-                      <Avatar className="h-8 w-8">
+                      <Avatar className="h-8 w-8 flex-shrink-0">
                         <AvatarFallback>
-                          <User className="h-4 w-4" />
+                          {message.role === "user" ? (
+                            <User className="h-4 w-4" />
+                          ) : (
+                            <Bot className="h-4 w-4" />
+                          )}
                         </AvatarFallback>
                       </Avatar>
-                    )}
+                      <div
+                        className={`rounded-lg px-4 py-2 ${
+                          message.role === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted"
+                        }`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap">
+                          {message.content}
+                        </p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {new Date(message.timestamp).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 ))
               )}
               
+              {/* Typing indicator */}
               {isTyping && (
                 <div className="flex gap-3 justify-start">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback>
-                      <Bot className="h-4 w-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="bg-muted rounded-lg px-4 py-2">
-                    <div className="flex items-center gap-1">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-sm text-muted-foreground">
-                        Digitando...
-                      </span>
+                  <div className="flex gap-3 max-w-[80%]">
+                    <Avatar className="h-8 w-8 flex-shrink-0">
+                      <AvatarFallback>
+                        <Bot className="h-4 w-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="rounded-lg px-4 py-2 bg-muted">
+                      <div className="flex gap-1">
+                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
+                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:0.1s]" />
+                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:0.2s]" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -345,25 +334,25 @@ export default function ChatPage() {
           
           <Separator />
           
-          {/* Message Input */}
+          {/* Input Area */}
           <div className="p-4">
             <div className="flex gap-2">
               <Input
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
                 placeholder={
                   selectedGpt
-                    ? `Escreva uma mensagem para ${selectedGpt.title}...`
+                    ? `Envie uma mensagem para ${selectedGpt.title}...`
                     : "Selecione um agente primeiro..."
                 }
-                disabled={!selectedGpt || chatMutation.isPending}
+                disabled={!selectedGpt}
+                onKeyPress={handleKeyPress}
                 className="flex-1"
               />
               <Button
                 onClick={handleSendMessage}
-                disabled={!selectedGpt || !inputMessage.trim() || chatMutation.isPending}
-                size="icon"
+                disabled={!inputMessage.trim() || !selectedGpt || chatMutation.isPending}
+                size="sm"
               >
                 {chatMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -372,12 +361,6 @@ export default function ChatPage() {
                 )}
               </Button>
             </div>
-            
-            {selectedGpt && (
-              <p className="text-xs text-muted-foreground mt-2">
-                Conversando com {selectedGpt.title} • {selectedGpt.category}
-              </p>
-            )}
           </div>
         </Card>
       </div>

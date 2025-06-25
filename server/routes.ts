@@ -459,6 +459,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get chat messages for a specific GPT
+  app.get("/api/chat/:gptId/messages", isAuthenticated, async (req, res) => {
+    try {
+      const gptId = parseInt(req.params.gptId);
+      if (isNaN(gptId)) {
+        return res.status(400).json({ message: "ID do GPT inválido" });
+      }
+      
+      const messages = await storage.getChatMessages(req.user!.id, gptId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Erro ao buscar mensagens:", error);
+      res.status(500).json({ message: "Erro ao buscar mensagens" });
+    }
+  });
+
+  // Clear chat messages for a specific GPT
+  app.delete("/api/chat/:gptId/messages", isAuthenticated, async (req, res) => {
+    try {
+      const gptId = parseInt(req.params.gptId);
+      if (isNaN(gptId)) {
+        return res.status(400).json({ message: "ID do GPT inválido" });
+      }
+      
+      await storage.clearChatMessages(req.user!.id, gptId);
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao limpar mensagens:", error);
+      res.status(500).json({ message: "Erro ao limpar mensagens" });
+    }
+  });
+
   // Chat with GPT route
   app.post("/api/chat", isAuthenticated, async (req, res) => {
     try {
@@ -473,6 +505,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!gpt) {
         return res.status(404).json({ message: "GPT não encontrado" });
       }
+
+      // Save user message to database
+      await storage.createChatMessage({
+        userId: req.user!.id,
+        gptId: gptId,
+        role: "user",
+        content: message
+      });
       
       // Generate response using OpenAI with GPT configuration
       const response = await generateGptResponse(
@@ -482,6 +522,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gpt.temperature || 70,
         gpt.files || []
       );
+
+      // Save assistant message to database
+      await storage.createChatMessage({
+        userId: req.user!.id,
+        gptId: gptId,
+        role: "assistant",
+        content: response
+      });
       
       // Log usage
       await storage.createUsageLog({

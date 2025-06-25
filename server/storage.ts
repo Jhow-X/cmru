@@ -3,7 +3,8 @@ import {
   gpts, type Gpt, type InsertGpt,
   favorites, type Favorite, type InsertFavorite,
   usageLogs, type UsageLog, type InsertUsageLog,
-  categories, type Category, type InsertCategory
+  categories, type Category, type InsertCategory,
+  chatMessages, type ChatMessage, type InsertChatMessage
 } from "@shared/schema";
 import session from "express-session";
 import { eq, desc, and, count, sql, isNotNull, inArray } from "drizzle-orm";
@@ -63,6 +64,11 @@ export interface IStorage {
   getAllCategories(): Promise<Category[]>;
   getCategoriesWithGpts(): Promise<Category[]>;
   createCategory(category: InsertCategory): Promise<Category>;
+  
+  // Chat message operations
+  getChatMessages(userId: number, gptId: number): Promise<ChatMessage[]>;
+  createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
+  clearChatMessages(userId: number, gptId: number): Promise<boolean>;
   
   // Session store
   sessionStore: any;
@@ -331,6 +337,27 @@ export class DatabaseStorage implements IStorage {
   async createCategory(insertCategory: InsertCategory): Promise<Category> {
     const [category] = await db.insert(categories).values(insertCategory).returning();
     return category;
+  }
+
+  // Chat message operations
+  async getChatMessages(userId: number, gptId: number): Promise<ChatMessage[]> {
+    return await db
+      .select()
+      .from(chatMessages)
+      .where(and(eq(chatMessages.userId, userId), eq(chatMessages.gptId, gptId)))
+      .orderBy(chatMessages.timestamp);
+  }
+
+  async createChatMessage(insertMessage: InsertChatMessage): Promise<ChatMessage> {
+    const [message] = await db.insert(chatMessages).values(insertMessage).returning();
+    return message;
+  }
+
+  async clearChatMessages(userId: number, gptId: number): Promise<boolean> {
+    const result = await db
+      .delete(chatMessages)
+      .where(and(eq(chatMessages.userId, userId), eq(chatMessages.gptId, gptId)));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 }
 
