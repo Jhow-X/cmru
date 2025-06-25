@@ -53,7 +53,7 @@ export default function ChatPage() {
     isLoading: messagesLoading,
     refetch: refetchMessages,
   } = useQuery<DBChatMessage[]>({
-    queryKey: ["/api/chat", selectedGptId, "messages"],
+    queryKey: [`/api/chat/${selectedGptId}/messages`],
     enabled: !!selectedGptId,
   });
 
