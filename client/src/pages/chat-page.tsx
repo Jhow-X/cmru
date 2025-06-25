@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Send, Bot, User, RefreshCw } from "lucide-react";
+import { Loader2, Send, Bot, User, RefreshCw, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Gpt } from "@shared/schema";
@@ -147,7 +147,20 @@ export default function ChatPage() {
 
   return (
     <div className="container mx-auto p-6 max-w-6xl">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-8rem)]">
+      {/* Header with Home Button */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Chat com GPTs</h1>
+        <Button
+          onClick={() => window.location.href = '/'}
+          variant="outline"
+          className="flex items-center gap-2"
+        >
+          <Home className="h-4 w-4" />
+          Início
+        </Button>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
         {/* Agent Selection Sidebar */}
         <Card className="lg:col-span-1">
           <CardHeader>
