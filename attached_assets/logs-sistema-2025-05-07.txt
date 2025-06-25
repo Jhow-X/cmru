@@ -1,0 +1,13 @@
+2025-05-07T15:20:21.966Z [INFO] Sistema iniciado
+2025-05-07T15:20:21.966Z [INFO] Banco de dados conectado
+2025-05-07T15:20:21.966Z [INFO] Usuario 'admin' logado
+2025-05-07T15:20:21.966Z [INFO] Acesso à página de administração
+2025-05-07T15:20:21.966Z [INFO] Listagem de usuários carregada
+2025-05-07T15:20:21.966Z [INFO] Listagem de GPTs carregada
+2025-05-07T15:20:21.966Z [INFO] Categorias carregadas
+2025-05-07T15:20:21.966Z [WARN] Tentativa de acesso inválida por IP 192.168.1.45
+2025-05-07T15:20:21.966Z [INFO] GPT 'Agravo de Instrumento' acessado 28 vezes hoje
+2025-05-07T15:20:21.966Z [INFO] GPT 'Petição Inicial' acessado 17 vezes hoje
+2025-05-07T15:20:21.966Z [ERROR] Falha ao conectar com serviço externo - tentando novamente
+2025-05-07T15:20:21.966Z [INFO] Reconexão bem sucedida
+2025-05-07T15:20:21.966Z [INFO] Backup do banco de dados realizado com sucesso
