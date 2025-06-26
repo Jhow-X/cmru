@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
-import openai, { getAvailableModels, generateGptResponse } from "./openai";
+import openai, { getAvailableModels, generateGptResponse, cleanupGptFiles } from "./openai";
 import { 
   insertGptSchema, 
   insertFavoriteSchema, 
@@ -422,13 +422,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Você não tem permissão para excluir este GPT" });
       }
       
+      // Clean up files before deleting the GPT
+      if (gpt.files && gpt.files.length > 0) {
+        try {
+          await cleanupGptFiles(gpt.files);
+          console.log(`Cleaned up ${gpt.files.length} files for GPT ${gptId}`);
+        } catch (cleanupError) {
+          console.error("Error cleaning up files:", cleanupError);
+          // Continue with deletion even if file cleanup fails
+        }
+      }
+      
       const success = await storage.deleteGpt(gptId);
       if (!success) {
         return res.status(500).json({ message: "Falha ao excluir GPT" });
       }
       
+      console.log(`GPT ${gptId} successfully deleted`);
       res.status(204).end();
     } catch (error) {
+      console.error("Error deleting GPT:", error);
       res.status(500).json({ message: "Erro ao excluir GPT" });
     }
   });

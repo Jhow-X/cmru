@@ -314,6 +314,26 @@ export async function getAvailableModels(): Promise<string[]> {
   }
 }
 
+// Function to clean up files when a GPT is deleted
+export async function cleanupGptFiles(files: string[]): Promise<void> {
+  if (!files || files.length === 0) {
+    return;
+  }
+
+  for (const fileName of files) {
+    try {
+      // Delete local file
+      const filePath = `public/uploads/${fileName}`;
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`Deleted local file: ${fileName}`);
+      }
+    } catch (error) {
+      console.error(`Error deleting local file ${fileName}:`, error);
+    }
+  }
+}
+
 export default {
   generateGptResponse,
   createVectorStore,

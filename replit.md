@@ -128,6 +128,7 @@ The application provides a Netflix-style interface for browsing legal GPTs, user
 - June 26, 2025: Updated OpenAI integration to use latest GPT-4o model with enhanced vector store management, assistant creation, and file processing capabilities
 - June 26, 2025: Added comprehensive file upload system for GPT creation with drag-and-drop interface, vector store integration, and support for PDF, TXT, DOCX, and other document formats
 - June 26, 2025: Fixed OpenAI integration to properly use Assistants API with file search - GPTs can now actually access and search through uploaded documents during conversations
+- June 26, 2025: Enhanced GPT deletion system with proper file cleanup - deleting a GPT now removes uploaded files from storage and properly cascades through related database records
 
 ## User Preferences
 
