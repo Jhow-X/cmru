@@ -201,7 +201,12 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
   }, [uploadedFiles, uploadFilesMutation]);
 
   const onSubmit = (data: CreateGptFormValues) => {
-    createGptMutation.mutate(data);
+    // Include vector store ID if files were uploaded
+    const submitData = {
+      ...data,
+      vectorStoreId: vectorStoreId || undefined
+    };
+    createGptMutation.mutate(submitData);
   };
   
   return (

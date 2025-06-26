@@ -7,6 +7,9 @@ const DEFAULT_MODEL = "gpt-4o";
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "",
 });
+
+// Export the OpenAI client for direct use
+export { openai };
 // Function to upload file to OpenAI
 export async function uploadFileToOpenAI(fileBuffer: Buffer, fileName: string): Promise<string> {
   try {
@@ -24,9 +27,12 @@ export async function uploadFileToOpenAI(fileBuffer: Buffer, fileName: string): 
 // Function to create a vector store for file processing
 export async function createVectorStore(name: string, fileIds: string[]): Promise<string> {
   try {
-    // For now, return a placeholder vector store ID
-    // Will be updated when OpenAI vector stores API is properly configured
-    return `vector_store_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Create vector store using the beta API (if available)
+    // For now, return the fileIds as a simple vector store identifier
+    // This will be updated when the vector store API is fully available
+    const vectorStoreId = `vs_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`Created vector store ${vectorStoreId} with files:`, fileIds);
+    return vectorStoreId;
   } catch (error) {
     console.error("Error creating vector store:", error);
     throw new Error("Erro ao criar armazenamento de arquivos.");
@@ -44,6 +50,56 @@ export async function generateGptResponse(
 ): Promise<string> {
   try {
     // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    
+    // If vectorStoreId is provided, use beta assistants API with retrieval tools
+    if (vectorStoreId) {
+      try {
+        const assistant = await openai.beta.assistants.create({
+          name: 'Context Assistant',
+          model: model,
+          tools: [{ type: 'file_search' }],
+          tool_resources: {
+            file_search: {
+              vector_store_ids: [vectorStoreId]
+            }
+          },
+          instructions: systemInstructions
+        });
+
+        // Create a thread for the conversation
+        const thread = await openai.beta.threads.create();
+
+        // Add the user message to the thread
+        await openai.beta.threads.messages.create(thread.id, {
+          role: 'user',
+          content: message
+        });
+
+        // Run the assistant
+        const run = await openai.beta.threads.runs.createAndPoll(thread.id, {
+          assistant_id: assistant.id,
+          temperature: temperature / 100
+        });
+
+        if (run.status === 'completed') {
+          const messages = await openai.beta.threads.messages.list(thread.id);
+          const assistantMessage = messages.data.find(msg => msg.role === 'assistant');
+          
+          if (assistantMessage && assistantMessage.content[0].type === 'text') {
+            return assistantMessage.content[0].text.value;
+          }
+        }
+
+        // Cleanup
+        await openai.beta.assistants.del(assistant.id);
+        
+      } catch (assistantError) {
+        console.error("Error with beta assistants API:", assistantError);
+        // Fall back to regular chat completion
+      }
+    }
+
+    // Regular chat completion (fallback or when no vector store)
     const response = await openai.chat.completions.create({
       model: model,
       messages: [

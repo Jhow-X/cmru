@@ -79,7 +79,7 @@ const upload = multer({
 
 // Configurar o uploader para documentos (GPT files)
 export const documentUpload = multer({
-  storage: memoryStorage,
+  storage: storage, // Use disk storage for file uploads
   fileFilter: documentFileFilter,
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB for documents

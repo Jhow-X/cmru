@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
-import openai, { getAvailableModels, generateGptResponse, uploadFileToOpenAI, createVectorStore } from "./openai";
+import { openai, getAvailableModels, generateGptResponse, uploadFileToOpenAI, createVectorStore } from "./openai";
 import { 
   insertGptSchema, 
   insertFavoriteSchema, 
@@ -13,6 +13,7 @@ import {
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import path from "path";
+import fs from "fs";
 import upload, { documentUpload, handleUploadError } from "./upload";
 
 // Auth middleware to check if user is authenticated
@@ -566,48 +567,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // File upload route with OpenAI vector storage
   app.post('/api/upload/files', isAuthenticated, documentUpload.array('files', 10), handleUploadError, async (req: Request, res: Response) => {
     try {
-      if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
-        return res.status(400).json({ message: 'Nenhum arquivo foi enviado' });
-      }
+      const files = req.files as Express.Multer.File[];
 
-      const { gptName } = req.body;
-      if (!gptName) {
-        return res.status(400).json({ message: 'Nome do GPT é obrigatório' });
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: 'No files uploaded' });
       }
 
       // Upload files to OpenAI
-      const uploadedFiles = [];
-      for (const file of req.files) {
-        try {
-          const fileId = await uploadFileToOpenAI(file.buffer, file.originalname);
-          uploadedFiles.push({
-            id: fileId,
-            name: file.originalname,
-            size: file.size,
-            type: file.mimetype
-          });
-        } catch (error) {
-          console.error(`Erro ao fazer upload do arquivo ${file.originalname}:`, error);
-          return res.status(500).json({ 
-            message: `Erro ao fazer upload do arquivo ${file.originalname}` 
-          });
-        }
-      }
+      const uploadedFiles = await Promise.all(
+        files.map(file =>
+          openai.files.create({
+            file: fs.createReadStream(file.path),
+            purpose: 'assistants',
+          })
+        )
+      );
 
       // Create vector store with uploaded files
-      const fileIds = uploadedFiles.map(f => f.id);
-      const vectorStoreId = await createVectorStore(gptName, fileIds);
+      const vectorStoreId = await createVectorStore(`gpt-context-${Date.now()}`, uploadedFiles.map((f: any) => f.id));
 
-      res.json({
-        message: 'Arquivos enviados com sucesso',
-        files: uploadedFiles,
-        vectorStoreId: vectorStoreId
+      // Cleanup local files
+      const fsPromises = require('fs').promises;
+      for (const file of files) {
+        await fsPromises.unlink(file.path);
+      }
+
+      res.json({ 
+        message: 'Files uploaded and stored', 
+        vectorStoreId: vectorStoreId,
+        fileIds: uploadedFiles.map((f: any) => f.id)
       });
     } catch (error) {
-      console.error('Erro no upload de arquivos:', error);
-      res.status(500).json({ 
-        message: 'Erro interno do servidor ao processar arquivos' 
-      });
+      console.error('File upload error:', error);
+      res.status(500).json({ error: 'Failed to upload and store files' });
     }
   });
   
