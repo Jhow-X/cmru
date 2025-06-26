@@ -38,7 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, UserPlus, Edit, Trash2, Play, Pause, PlusCircle } from "lucide-react";
+import { Loader2, UserPlus, Edit, Trash2, Play, Pause, PlusCircle, Upload, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 export default function AdminPage() {
@@ -1408,13 +1408,13 @@ export default function AdminPage() {
       
       {/* GPT Dialog */}
       <Dialog open={isGptDialogOpen} onOpenChange={setIsGptDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingGpt ? "Editar GPT" : "Novo GPT"}</DialogTitle>
             <DialogDescription>
               {editingGpt 
                 ? "Edite as informações do GPT abaixo." 
-                : "Preencha as informações para criar um novo GPT."}
+                : "Crie um GPT personalizado com instruções específicas e configurações avançadas."}
             </DialogDescription>
           </DialogHeader>
           
@@ -1483,42 +1483,25 @@ export default function AdminPage() {
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={gptForm.control}
                   name="model"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Modelo</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                        value={field.value}
-                      >
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione o modelo" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {modelsLoading ? (
-                            <div className="flex justify-center p-2">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            </div>
-                          ) : models.length > 0 ? (
-                            models.map((model) => (
-                              <SelectItem key={model} value={model}>
-                                {model}
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <>
-                              <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                              <SelectItem value="gpt-4">GPT-4</SelectItem>
-                              <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
-                              <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-                            </>
-                          )}
+                          {models.map((model) => (
+                            <SelectItem key={model} value={model}>
+                              {model}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -1548,29 +1531,31 @@ export default function AdminPage() {
                 />
               </div>
               
-              <FormField
-                control={gptForm.control}
-                name="files"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Arquivos (URLs separadas por vírgula)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="https://exemplo.com/arquivo1.pdf, https://exemplo.com/arquivo2.txt"
-                        value={field.value?.join(', ') || ''}
-                        onChange={(e) => {
-                          const files = e.target.value.split(',').map(f => f.trim()).filter(f => f);
-                          field.onChange(files);
-                        }}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      URLs dos arquivos que o GPT pode referenciar, separadas por vírgula
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* File Upload Component - matching my-gpts design */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Arquivos de Referência</label>
+                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.txt,.doc,.docx,.json,.md"
+                    className="hidden"
+                    id="file-upload-admin"
+                  />
+                  <label 
+                    htmlFor="file-upload-admin" 
+                    className="cursor-pointer flex flex-col items-center space-y-2"
+                  >
+                    <Upload className="h-8 w-8 text-gray-400" />
+                    <span className="text-sm text-gray-500">
+                      Clique para enviar arquivos ou arraste e solte
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      PDF, TXT, DOC, DOCX, JSON, MD até 10MB
+                    </span>
+                  </label>
+                </div>
+              </div>
               
               <FormField
                 control={gptForm.control}
