@@ -14,8 +14,6 @@ import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import path from "path";
 import upload, { handleUploadError } from "./upload";
-import documentUpload, { handleDocumentUploadError } from "./document-upload";
-import { fileStoreService } from "./filestore-simple";
 
 // Auth middleware to check if user is authenticated
 function isAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -664,46 +662,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error incrementing GPT views:", error);
       res.status(500).json({ message: "Erro ao registrar visualização" });
-    }
-  });
-
-  // File upload endpoints
-  app.post('/api/files/upload', isAuthenticated, documentUpload.array('files'), handleDocumentUploadError, async (req: Request, res: Response) => {
-    try {
-      const files = req.files as Express.Multer.File[];
-
-      if (!files || files.length === 0) {
-        return res.status(400).json({ error: 'No files uploaded' });
-      }
-      
-      const uploadedFiles = await fileStoreService.uploadFiles(files);
-      
-      res.json({
-        message: 'Files uploaded successfully',
-        fileIds: uploadedFiles.map(f => f.fileId),
-        uploadedFiles: uploadedFiles
-      });
-    } catch (error) {
-      console.error('File upload error:', error);
-      res.status(500).json({ error: 'Failed to upload files' });
-    }
-  });
-
-  // Delete files endpoint
-  app.delete('/api/files', isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const { fileIds } = req.body;
-
-      if (!fileIds || !Array.isArray(fileIds)) {
-        return res.status(400).json({ error: 'File IDs are required' });
-      }
-
-      await fileStoreService.deleteFiles(fileIds);
-      
-      res.json({ message: 'Files deleted successfully' });
-    } catch (error) {
-      console.error('File deletion error:', error);
-      res.status(500).json({ error: 'Failed to delete files' });
     }
   });
   

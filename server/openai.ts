@@ -18,19 +18,13 @@ export async function generateGptResponse(
   files: string[] = []
 ): Promise<string> {
   try {
-    // If files are provided, use the assistants API with vector stores
-    if (files.length > 0) {
-      return await generateResponseWithFiles(message, systemInstructions, model, temperature, files);
-    }
-
-    // Otherwise use regular chat completions
     // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
     const response = await openai.chat.completions.create({
       model: model,
       messages: [
         {
           role: "system",
-          content: systemInstructions
+          content: systemInstructions + (files.length > 0 ? `\n\nArquivos de referência disponíveis: ${files.join(', ')}` : '')
         },
         {
           role: "user",
@@ -45,46 +39,6 @@ export async function generateGptResponse(
   } catch (error) {
     console.error("Error generating GPT response:", error);
     throw new Error("Erro ao processar sua mensagem. Tente novamente.");
-  }
-}
-
-// Function to generate response using regular chat with file context
-async function generateResponseWithFiles(
-  message: string,
-  systemInstructions: string,
-  model: string,
-  temperature: number,
-  files: string[]
-): Promise<string> {
-  try {
-    // For now, use regular chat completions with file context mentioned
-    // This is a fallback approach until the assistants API with files is properly configured
-    const enhancedSystemInstructions = `${systemInstructions}
-
-IMPORTANT: You have access to uploaded files with the following IDs: ${files.join(', ')}
-These files contain reference documents that you should use to answer the user's questions.
-If the user asks about content that might be in these files, mention that you have access to uploaded documents and try to provide relevant information based on the context of the conversation.`;
-
-    const response = await openai.chat.completions.create({
-      model: model,
-      messages: [
-        {
-          role: "system",
-          content: enhancedSystemInstructions
-        },
-        {
-          role: "user",
-          content: message
-        }
-      ],
-      temperature: temperature / 100,
-      max_tokens: 2000,
-    });
-
-    return response.choices[0].message.content || "Desculpe, não consegui gerar uma resposta.";
-  } catch (error) {
-    console.error("Error generating response with files:", error);
-    throw new Error("Erro ao processar sua mensagem com arquivos. Tente novamente.");
   }
 }
 
