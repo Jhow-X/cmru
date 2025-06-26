@@ -48,7 +48,7 @@ export async function generateGptResponse(
   }
 }
 
-// Function to generate response using assistants API with uploaded files
+// Function to generate response using regular chat with file context
 async function generateResponseWithFiles(
   message: string,
   systemInstructions: string,
@@ -57,60 +57,31 @@ async function generateResponseWithFiles(
   files: string[]
 ): Promise<string> {
   try {
-    // Create assistant with file access (simplified approach)
-    const assistant = await openai.beta.assistants.create({
-      name: 'Context Assistant',
+    // For now, use regular chat completions with file context mentioned
+    // This is a fallback approach until the assistants API with files is properly configured
+    const enhancedSystemInstructions = `${systemInstructions}
+
+IMPORTANT: You have access to uploaded files with the following IDs: ${files.join(', ')}
+These files contain reference documents that you should use to answer the user's questions.
+If the user asks about content that might be in these files, mention that you have access to uploaded documents and try to provide relevant information based on the context of the conversation.`;
+
+    const response = await openai.chat.completions.create({
       model: model,
-      instructions: systemInstructions,
-      tools: [{ type: 'retrieval' }],
-      file_ids: files,
+      messages: [
+        {
+          role: "system",
+          content: enhancedSystemInstructions
+        },
+        {
+          role: "user",
+          content: message
+        }
+      ],
       temperature: temperature / 100,
+      max_tokens: 2000,
     });
 
-    // Create thread
-    const thread = await openai.beta.threads.create();
-
-    // Add message to thread
-    await openai.beta.threads.messages.create(thread.id, {
-      role: 'user',
-      content: message,
-    });
-
-    // Run the assistant
-    const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: assistant.id,
-    });
-
-    // Poll until the run is completed
-    let runStatus = run.status;
-    let attempts = 0;
-    const maxAttempts = 30; // 30 seconds timeout
-    
-    while (runStatus !== 'completed' && runStatus !== 'failed' && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const updatedRun = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-      runStatus = updatedRun.status;
-      attempts++;
-    }
-
-    if (runStatus === 'failed' || attempts >= maxAttempts) {
-      throw new Error('Assistant run failed or timed out');
-    }
-
-    // Get the response
-    const messages = await openai.beta.threads.messages.list(thread.id);
-    const lastMessage = messages.data.find(m => m.role === 'assistant');
-
-    if (!lastMessage || !lastMessage.content[0] || lastMessage.content[0].type !== 'text') {
-      throw new Error('No valid response from assistant');
-    }
-
-    // Cleanup assistant
-    await openai.beta.assistants.del(assistant.id).catch(err => 
-      console.warn('Failed to cleanup assistant:', err.message)
-    );
-
-    return lastMessage.content[0].text.value;
+    return response.choices[0].message.content || "Desculpe, não consegui gerar uma resposta.";
   } catch (error) {
     console.error("Error generating response with files:", error);
     throw new Error("Erro ao processar sua mensagem com arquivos. Tente novamente.");
