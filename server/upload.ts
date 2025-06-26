@@ -31,17 +31,27 @@ const storage = multer.diskStorage({
   }
 });
 
-// Filtrar arquivos (apenas imagens)
+// Filtrar arquivos (imagens e documentos para Vector Store)
 const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   // Verificar o tipo MIME do arquivo
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  const allowedTypes = [
+    // Imagens (para avatares/thumbnails)
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+    // Documentos (para Vector Store)
+    'application/pdf',
+    'text/plain',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/json',
+    'text/markdown'
+  ];
   
   if (allowedTypes.includes(file.mimetype)) {
     // Aceitar o arquivo
     cb(null, true);
   } else {
     // Rejeitar o arquivo
-    cb(new Error('Tipo de arquivo não suportado. Apenas imagens (JPEG, PNG, GIF, WEBP) são permitidas.'));
+    cb(new Error('Tipo de arquivo não suportado. Permitidos: imagens (JPEG, PNG, GIF, WEBP) e documentos (PDF, TXT, DOC, DOCX, JSON, MD).'));
   }
 };
 
@@ -50,7 +60,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 10 * 1024 * 1024, // 10MB para documentos
   }
 });
 
@@ -60,7 +70,7 @@ export const handleUploadError = (err: any, req: Request, res: Response, next: N
     // Erro do Multer
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
-        message: 'Arquivo muito grande. O tamanho máximo permitido é 5MB.'
+        message: 'Arquivo muito grande. O tamanho máximo permitido é 10MB.'
       });
     }
     return res.status(400).json({
