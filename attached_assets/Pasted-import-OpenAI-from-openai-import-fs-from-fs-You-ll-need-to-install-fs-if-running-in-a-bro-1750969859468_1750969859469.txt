@@ -11,40 +11,44 @@ const openai = new OpenAI({
 const mySecret = process.env["OPENAI_API_KEY"];
 console.log("Minha chave API é: ", mySecret);
 
-let assistantId: string | null = null;
-let vectorStoreId: string | null = null;
+let assistantId = null;
+let vectorStoreId = null;
 
 /**
  * Configura o assistente OpenAI com a funcionalidade de busca de arquivos.
  * Cria um vector store, faz o upload dos arquivos e anexa-os ao assistente.
  * @param {string[]} filePaths - Caminhos para os arquivos a serem carregados.
  */
-export async function setupAssistantWithFiles(filePaths: string[]): Promise<void> {
+export async function setupAssistantWithFiles(filePaths) {
   try {
     console.log("Configurando assistente com arquivos...");
 
-    // Upload files for use with the assistant
-    const uploadedFiles = [];
-    for (const filePath of filePaths) {
-      try {
-        const file = await openai.files.create({
-          file: fs.createReadStream(filePath),
-          purpose: "assistants",
-        });
-        uploadedFiles.push(file.id);
-        console.log(`Arquivo carregado: ${filePath} com ID: ${file.id}`);
-      } catch (fileError) {
-        console.warn(`Erro ao carregar arquivo ${filePath}:`, fileError);
-      }
-    }
+    // 1. Criar um vector store
+    const vectorStore = await openai.vectorStores.create({
+      name: "Armazenamento de Documentos Legais",
+    });
+    vectorStoreId = vectorStore.id;
+    console.log("Vector Store criado com ID:", vectorStoreId);
 
-    // Create the assistant with uploaded files
+    // 2. Fazer upload dos arquivos e adicioná-los ao vector store
+    const fileStreams = filePaths.map((path) => fs.createReadStream(path));
+    await openai.vectorStores.fileBatches.uploadAndPoll(
+      vectorStoreId,
+      fileStreams
+    );
+    console.log("Arquivos carregados e adicionados ao Vector Store.");
+
+    // 3. Criar ou atualizar o assistente para usar o novo Vector Store
     const assistant = await openai.beta.assistants.create({
       name: "Assistente Jurídico Especializado",
       instructions: "Você é um assistente jurídico especializado. Use seu conhecimento base e os documentos fornecidos para responder às perguntas do usuário de forma precisa e útil.",
       model: DEFAULT_MODEL,
-      tools: [{ type: "code_interpreter" }, { type: "file_search" }],
-      file_ids: uploadedFiles,
+      tools: [{ type: "file_search" }],
+      tool_resources: {
+        file_search: {
+          vector_store_ids: [vectorStoreId],
+        },
+      },
     });
     assistantId = assistant.id;
     console.log("Assistente criado/atualizado com ID:", assistantId);
@@ -65,32 +69,62 @@ export async function setupAssistantWithFiles(filePaths: string[]): Promise<void
  * @returns {Promise<string>} A resposta gerada pelo GPT.
  */
 export async function generateGptResponse(
-  message: string,
-  systemInstructions: string,
-  model: string = DEFAULT_MODEL,
-  temperature: number = 70,
-  files: string[] = []
-): Promise<string> {
+  message,
+  systemInstructions,
+  model = DEFAULT_MODEL,
+  temperature = 70
+) {
+  if (!assistantId) {
+    throw new Error("O assistente não está configurado. Chame 'setupAssistantWithFiles' primeiro.");
+  }
+
   try {
-    // Use chat completions directly instead of assistants for better compatibility
-    const response = await openai.chat.completions.create({
-      model: model,
+    // 1. Criar um thread
+    const thread = await openai.beta.threads.create({
       messages: [
-        {
-          role: "system",
-          content: systemInstructions + (files.length > 0 
-            ? `\n\nArquivos de referência disponíveis: ${files.join(", ")}` 
-            : ""),
-        },
         {
           role: "user",
           content: message,
         },
       ],
-      temperature: temperature / 100, // Convert 0-100 to 0-1
+      // O assistente usará o vector store anexado a ele
     });
+    console.log("Thread criada com ID:", thread.id);
 
-    return response.choices[0].message.content || "Desculpe, não consegui gerar uma resposta.";
+    // 2. Criar uma execução no thread
+    const run = await openai.beta.threads.runs.create(thread.id, {
+      assistant_id: assistantId,
+      instructions: systemInstructions, // As instruções do sistema podem ser passadas aqui
+    });
+    console.log("Execução iniciada com ID:", run.id);
+
+    // 3. Esperar a execução ser concluída
+    let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+    while (runStatus.status === "queued" || runStatus.status === "in_progress") {
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Espera 1 segundo antes de verificar novamente
+      runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+    }
+
+    if (runStatus.status === "completed") {
+      const messages = await openai.beta.threads.messages.list(thread.id);
+      const lastMessage = messages.data
+        .filter(
+          (msg) => msg.run_id === run.id && msg.role === "assistant"
+        )
+        .pop();
+
+      if (lastMessage && lastMessage.content) {
+        // Encontra o primeiro conteúdo de texto
+        const textContent = lastMessage.content.find(content => content.type === 'text');
+        if (textContent) {
+          return textContent.text.value;
+        }
+      }
+      return "Desculpe, não consegui gerar uma resposta.";
+    } else {
+      console.error("Status da execução:", runStatus.status);
+      return "Desculpe, a execução do assistente não foi concluída com sucesso.";
+    }
   } catch (error) {
     console.error("Erro ao gerar resposta do GPT:", error);
     throw new Error("Erro ao processar sua mensagem. Tente novamente.");
@@ -102,7 +136,7 @@ export async function generateGptResponse(
  * @param {string} documentText - O texto do documento legal a ser analisado.
  * @returns {Promise<string>} A análise do documento.
  */
-export async function analyzeLegalDocument(documentText: string): Promise<string> {
+export async function analyzeLegalDocument(documentText) {
   const systemPrompt = `
     Você é um assistente jurídico especializado na análise de documentos legais.
     Sua tarefa é analisar o documento fornecido e extrair:
@@ -123,7 +157,7 @@ export async function analyzeLegalDocument(documentText: string): Promise<string
  * @param {string} responseType - O tipo de resposta legal a ser redigida.
  * @returns {Promise<string>} A resposta legal redigida.
  */
-export async function draftLegalResponse(caseDetails: string, responseType: string): Promise<string> {
+export async function draftLegalResponse(caseDetails, responseType) {
   const systemPrompt = `
     Você é um assistente jurídico especializado na redação de documentos legais.
     Sua tarefa é redigir um(a) ${responseType} com base nos detalhes do caso fornecido.
@@ -140,7 +174,7 @@ export async function draftLegalResponse(caseDetails: string, responseType: stri
  * @param {string} query - A consulta para referências legais.
  * @returns {Promise<string>} As referências legais.
  */
-export async function getLegalReferences(query: string): Promise<string> {
+export async function getLegalReferences(query) {
   const systemPrompt = `
     Você é um assistente jurídico especializado em pesquisa legal.
     Sua tarefa é fornecer referências legais relevantes para a consulta fornecida, incluindo:
@@ -159,10 +193,10 @@ export async function getLegalReferences(query: string): Promise<string> {
  * Função para obter modelos GPT disponíveis.
  * @returns {Promise<string[]>} Uma lista de IDs de modelos disponíveis.
  */
-export async function getAvailableModels(): Promise<string[]> {
+export async function getAvailableModels() {
   try {
     const list = await openai.models.list();
-    const models: string[] = [];
+    const models = [];
 
     for await (const model of list) {
       // Filtrar para incluir apenas modelos GPT comumente usados
