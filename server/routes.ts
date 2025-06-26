@@ -3,13 +3,7 @@ import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
-import openai, { 
-  getAvailableModels, 
-  generateGptResponse,
-  createAssistantWithFileSearch,
-  createVectorStoreWithFiles,
-  updateAssistantWithVectorStore
-} from "./openai";
+import openai, { getAvailableModels, generateGptResponse } from "./openai";
 import { 
   insertGptSchema, 
   insertFavoriteSchema, 
@@ -314,64 +308,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Updated GPT creation route with Vector Store integration
-  app.post("/api/gpts", isMagistrate, upload.array('files'), handleUploadError, async (req, res) => {
+  app.post("/api/gpts", isMagistrate, async (req, res) => {
     try {
-      // Parse FormData properly - convert string values to correct types
-      const formData = req.body;
-      console.log('Received FormData:', formData);
+      const gptData = insertGptSchema.parse(req.body);
       
-      const parsedData = {
-        title: formData.title,
-        description: formData.description,
-        name: formData.name,
-        systemInstructions: formData.systemInstructions,
-        model: formData.model,
-        temperature: formData.temperature ? parseInt(formData.temperature, 10) : 70,
-        category: formData.category,
-        creatorName: formData.creatorName || '',
-        imageUrl: formData.imageUrl || '',
-        isFeatured: formData.isFeatured === 'true',
-        isNew: formData.isNew === 'true',
-        createdBy: req.user.id
-      };
-      
-      console.log('Parsed data for validation:', parsedData);
-      const gptData = insertGptSchema.parse(parsedData);
-      const files = req.files as Express.Multer.File[] || [];
-      
-      let assistantId = '';
-      let vectorStoreId = '';
-      
-      // Create OpenAI Assistant with file search enabled
-      try {
-        assistantId = await createAssistantWithFileSearch(
-          gptData.name,
-          gptData.systemInstructions,
-          gptData.model
-        );
-        
-        // Create vector store and upload files if any
-        if (files.length > 0) {
-          vectorStoreId = await createVectorStoreWithFiles(
-            `${gptData.name} Knowledge Base`,
-            files
-          );
-          
-          // Update assistant to use the vector store
-          await updateAssistantWithVectorStore(assistantId, vectorStoreId);
-        }
-      } catch (openaiError) {
-        console.error("OpenAI integration error:", openaiError);
-        // Continue with GPT creation even if OpenAI fails
-      }
-      
-      // Create GPT with assistant and vector store IDs
+      // Set the current user as creator
       const gpt = await storage.createGpt({
         ...gptData,
-        assistantId: assistantId || null,
-        vectorStoreId: vectorStoreId || null,
-        files: files.length > 0 ? files.map(f => f.originalname) : [], // Store file names instead of URLs
         createdBy: req.user!.id
       });
       
@@ -381,7 +324,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const validationError = fromZodError(error);
         return res.status(400).json({ message: validationError.message });
       }
-      console.error("Error creating GPT:", error);
       res.status(500).json({ message: "Erro ao criar GPT" });
     }
   });

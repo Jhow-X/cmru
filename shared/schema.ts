@@ -30,8 +30,6 @@ export const gpts = pgTable("gpts", {
   model: text("model").notNull().default("gpt-4"),
   temperature: integer("temperature").default(70), // Store as integer (0-100)
   files: text("files").array().default([]),
-  assistantId: text("assistant_id"), // OpenAI Assistant ID
-  vectorStoreId: text("vector_store_id"), // OpenAI Vector Store ID
   creatorName: text("creator_name"),
   imageUrl: text("image_url"),
   category: text("category").notNull(),

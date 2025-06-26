@@ -34,7 +34,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import { Category } from "@shared/schema";
-import { Loader2, Upload, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 // Complete GPT creation schema (same as admin)
 const createGptSchema = z.object({
@@ -61,7 +61,6 @@ interface AddGptDialogProps {
 
 export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) {
   const { toast } = useToast();
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   
   // Fetch categories
   const { data: categories = [] } = useQuery<Category[]>({
@@ -95,36 +94,7 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
   // Create GPT mutation
   const createGptMutation = useMutation({
     mutationFn: async (data: CreateGptFormValues) => {
-      const formData = new FormData();
-      
-      // Add text fields with proper type conversion
-      Object.entries(data).forEach(([key, value]) => {
-        if (key !== 'files' && value !== undefined && value !== null) {
-          // Convert boolean and number types properly
-          if (typeof value === 'boolean' || typeof value === 'number') {
-            formData.append(key, value.toString());
-          } else {
-            formData.append(key, String(value));
-          }
-        }
-      });
-      
-      // Add files
-      selectedFiles.forEach((file) => {
-        formData.append('files', file);
-      });
-      
-      const response = await fetch("/api/gpts", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Erro ao criar GPT");
-      }
-      
+      const response = await apiRequest("POST", "/api/gpts", data);
       return response.json();
     },
     onSuccess: () => {
@@ -138,7 +108,6 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
       });
       onOpenChange(false);
       form.reset();
-      setSelectedFiles([]);
     },
     onError: (error: Error) => {
       toast({
@@ -276,62 +245,26 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
               />
             </div>
             
-            {/* File Upload Component */}
-            <div className="space-y-2">
-              <FormLabel>Arquivos de Referência</FormLabel>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                <div className="text-center">
-                  <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                  <div className="text-sm text-gray-600 mb-2">
-                    Clique para selecionar arquivos ou arraste aqui
-                  </div>
-                  <input
-                    type="file"
-                    multiple
-                    accept=".pdf,.txt,.doc,.docx,.json,.md"
-                    onChange={(e) => {
-                      if (e.target.files) {
-                        setSelectedFiles(Array.from(e.target.files));
-                      }
-                    }}
-                    className="hidden"
-                    id="file-upload"
-                  />
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => document.getElementById('file-upload')?.click()}
-                  >
-                    Selecionar Arquivos
-                  </Button>
-                </div>
-                
-                {/* Selected Files Display */}
-                {selectedFiles.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    <div className="text-sm font-medium">Arquivos selecionados:</div>
-                    {selectedFiles.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                        <span className="text-sm truncate">{file.name}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedFiles(files => files.filter((_, i) => i !== index));
-                          }}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="text-xs text-gray-500">
-                Suporte para: PDF, TXT, DOC, DOCX, JSON, MD (máximo 10MB por arquivo)
-              </div>
-            </div>
+            <FormField
+              control={form.control}
+              name="files"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Arquivos (URLs separadas por vírgula)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="https://exemplo.com/arquivo1.pdf, https://exemplo.com/arquivo2.txt"
+                      value={field.value?.join(', ') || ''}
+                      onChange={(e) => {
+                        const urls = e.target.value.split(',').map(url => url.trim()).filter(url => url);
+                        field.onChange(urls);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField

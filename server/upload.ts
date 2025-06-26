@@ -31,37 +31,17 @@ const storage = multer.diskStorage({
   }
 });
 
-// Filtrar arquivos (imagens e documentos para Vector Store)
+// Filtrar arquivos (apenas imagens)
 const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  // Log do tipo de arquivo para debug
-  console.log(`File upload attempt: ${file.originalname}, MIME type: ${file.mimetype}`);
+  // Verificar o tipo MIME do arquivo
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
   
-  // Verificar o tipo MIME do arquivo e extensão como fallback
-  const allowedTypes = [
-    // Imagens (para avatares/thumbnails)
-    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
-    // Documentos (para Vector Store)
-    'application/pdf',
-    'text/plain',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/json',
-    'text/markdown',
-    // Tipos alternativos que podem aparecer
-    'application/x-pdf',
-    'text/x-markdown'
-  ];
-  
-  // Verificar extensão como fallback
-  const fileExtension = path.extname(file.originalname).toLowerCase();
-  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.txt', '.doc', '.docx', '.json', '.md'];
-  
-  if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
-    console.log(`File accepted: ${file.originalname}`);
+  if (allowedTypes.includes(file.mimetype)) {
+    // Aceitar o arquivo
     cb(null, true);
   } else {
-    console.log(`File rejected: ${file.originalname}, MIME: ${file.mimetype}, Extension: ${fileExtension}`);
-    cb(new Error('Tipo de arquivo não suportado. Permitidos: imagens (JPEG, PNG, GIF, WEBP) e documentos (PDF, TXT, DOC, DOCX, JSON, MD).'));
+    // Rejeitar o arquivo
+    cb(new Error('Tipo de arquivo não suportado. Apenas imagens (JPEG, PNG, GIF, WEBP) são permitidas.'));
   }
 };
 
@@ -70,7 +50,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB para documentos
+    fileSize: 5 * 1024 * 1024, // 5MB
   }
 });
 
@@ -80,7 +60,7 @@ export const handleUploadError = (err: any, req: Request, res: Response, next: N
     // Erro do Multer
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
-        message: 'Arquivo muito grande. O tamanho máximo permitido é 10MB.'
+        message: 'Arquivo muito grande. O tamanho máximo permitido é 5MB.'
       });
     }
     return res.status(400).json({
