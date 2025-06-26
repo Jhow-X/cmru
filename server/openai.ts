@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
+import mammoth from "mammoth";
+import csv from "csv-parser";
 
 const DEFAULT_MODEL = "gpt-4o";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
@@ -60,7 +62,7 @@ export async function generateGptResponse(
   }
 }
 
-// Helper function to read and truncate file contents to manage token limits
+// Helper function to read and parse different document types
 async function readFilesContent(filePaths: string[]): Promise<string> {
   try {
     const maxTokensPerFile = 5000; // Limit per file to prevent token overflow
@@ -69,8 +71,101 @@ async function readFilesContent(filePaths: string[]): Promise<string> {
     const contents = await Promise.all(
       filePaths.map(async (filePath) => {
         try {
-          let content = await fs.promises.readFile(filePath, 'utf-8');
           const fileName = path.basename(filePath);
+          const ext = path.extname(filePath).toLowerCase();
+          let content = "";
+          
+          console.log(`Processando arquivo: ${fileName} (${ext})`);
+          
+          // Parse different file types
+          switch (ext) {
+            case '.pdf':
+              // For PDF files, provide metadata and note about content
+              try {
+                const pdfBuffer = await fs.promises.readFile(filePath);
+                const stats = await fs.promises.stat(filePath);
+                content = `[Documento PDF: ${fileName}]
+Tamanho: ${(pdfBuffer.length / 1024).toFixed(2)} KB
+Data de modificação: ${stats.mtime.toLocaleDateString('pt-BR')}
+
+Este é um arquivo PDF que foi enviado como contexto. 
+O usuário pode fazer perguntas sobre o conteúdo deste documento.
+Nome do arquivo: ${fileName}`;
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                content = `[PDF File: ${fileName}]\n[Error accessing PDF: ${errorMessage}]`;
+              }
+              break;
+              
+            case '.docx':
+              try {
+                const docxResult = await mammoth.extractRawText({ path: filePath });
+                content = docxResult.value || `[Documento Word: ${fileName}]\n[Conteúdo não pôde ser extraído]`;
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                content = `[Documento Word: ${fileName}]\n[Erro ao processar: ${errorMessage}]`;
+              }
+              break;
+              
+            case '.doc':
+              // For .doc files, provide file info since binary reading isn't reliable
+              try {
+                const stats = await fs.promises.stat(filePath);
+                content = `[Documento Word Antigo: ${fileName}]
+Tamanho: ${(stats.size / 1024).toFixed(2)} KB
+Data de modificação: ${stats.mtime.toLocaleDateString('pt-BR')}
+
+Este é um arquivo .doc (formato antigo do Word) que foi enviado como contexto.
+Para melhor processamento, recomenda-se converter para .docx ou .txt`;
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                content = `[Documento Word: ${fileName}]\n[Erro ao acessar: ${errorMessage}]`;
+              }
+              break;
+              
+            case '.csv':
+              try {
+                const csvData: any[] = [];
+                await new Promise((resolve, reject) => {
+                  fs.createReadStream(filePath)
+                    .pipe(csv())
+                    .on('data', (row) => csvData.push(row))
+                    .on('end', resolve)
+                    .on('error', reject);
+                });
+                content = `[Arquivo CSV: ${fileName}]\n${JSON.stringify(csvData.slice(0, 50), null, 2)}${csvData.length > 50 ? '\n... (dados truncados, mostrando apenas 50 primeiras linhas)' : ''}`;
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                content = `[CSV File: ${fileName}]\n[Erro ao processar: ${errorMessage}]`;
+              }
+              break;
+              
+            case '.json':
+              try {
+                const jsonContent = await fs.promises.readFile(filePath, 'utf-8');
+                const jsonData = JSON.parse(jsonContent);
+                content = `[Arquivo JSON: ${fileName}]\n${JSON.stringify(jsonData, null, 2)}`;
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                // If JSON parsing fails, try to read as plain text
+                try {
+                  content = await fs.promises.readFile(filePath, 'utf-8');
+                } catch {
+                  content = `[JSON File: ${fileName}]\n[Erro ao processar: ${errorMessage}]`;
+                }
+              }
+              break;
+              
+            case '.txt':
+            default:
+              try {
+                content = await fs.promises.readFile(filePath, 'utf-8');
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                content = `[Arquivo de texto: ${fileName}]\n[Erro ao ler: ${errorMessage}]`;
+              }
+              break;
+          }
           
           // Truncate content if it's too large
           if (content.length > maxCharsPerFile) {
@@ -78,10 +173,12 @@ async function readFilesContent(filePaths: string[]): Promise<string> {
               `\n\n[... Conteúdo truncado para evitar excesso de tokens. Arquivo original tem ${content.length} caracteres ...]`;
           }
           
+          console.log(`Conteúdo extraído do ${fileName}: ${content.length} caracteres`);
           return `=== ${fileName} ===\n${content}\n`;
         } catch (error) {
           console.warn(`Could not read file: ${filePath}`, error);
-          return `=== ${path.basename(filePath)} ===\n[Arquivo não pôde ser lido]\n`;
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          return `=== ${path.basename(filePath)} ===\n[Erro ao processar arquivo: ${errorMessage}]\n`;
         }
       })
     );
@@ -95,6 +192,7 @@ async function readFilesContent(filePaths: string[]): Promise<string> {
         '\n\n[... Contexto truncado para respeitar limites de tokens da API ...]';
     }
     
+    console.log(`Conteúdo total preparado: ${result.length} caracteres`);
     return result;
   } catch (error) {
     console.error("Error reading files:", error);
