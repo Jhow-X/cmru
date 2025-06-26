@@ -8,6 +8,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "",
 });
 const mySecret = process.env["OPENAI_API_KEY"];
+console.log("My secret is: ", mySecret);
 // Function to generate a response from a GPT with custom configuration
 export async function generateGptResponse(
   message: string,
