@@ -130,10 +130,6 @@ The application provides a Netflix-style interface for browsing legal GPTs, user
 - June 26, 2025: Added document upload endpoint supporting PDF, DOC, DOCX, TXT, CSV, and JSON files for GPT context
 - June 26, 2025: Updated OpenAI integration to use current API methods with file context reading for enhanced GPT responses
 - June 26, 2025: Fixed all JSX syntax errors, React Query deprecated options, and type safety issues
-- June 26, 2025: Fixed GPT deletion functionality with proper cascading deletes for related database records
-- June 26, 2025: Resolved OpenAI API token limit issues by implementing content truncation and token management
-- June 26, 2025: Enhanced file processing system to properly handle PDF, DOCX, CSV, JSON, and TXT files
-- June 26, 2025: Fixed nested anchor tag warnings in header and footer navigation components
 
 ## User Preferences
 
