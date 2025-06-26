@@ -231,8 +231,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteGpt(id: number): Promise<boolean> {
-    const result = await db.delete(gpts).where(eq(gpts.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
+    try {
+      // First check if GPT exists
+      const [existingGpt] = await db.select().from(gpts).where(eq(gpts.id, id));
+      if (!existingGpt) {
+        return false;
+      }
+
+      // Delete related records first to maintain referential integrity
+      await db.delete(favorites).where(eq(favorites.gptId, id));
+      await db.delete(usageLogs).where(eq(usageLogs.gptId, id)); 
+      await db.delete(chatMessages).where(eq(chatMessages.gptId, id));
+      
+      // Delete the GPT
+      await db.delete(gpts).where(eq(gpts.id, id));
+      return true;
+    } catch (error) {
+      console.error("Erro ao excluir GPT:", error);
+      return false;
+    }
   }
 
   async incrementGptViews(id: number): Promise<void> {

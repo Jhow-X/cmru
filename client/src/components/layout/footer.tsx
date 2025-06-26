@@ -22,13 +22,13 @@ export default function Footer() {
             <h4 className="text-lg font-semibold mb-4">Links Rápidos</h4>
             <ul className="space-y-2">
               <li>
-                <Link href="/">
-                  <a className="text-neutral-200 hover:text-accent transition">Início</a>
+                <Link href="/" className="text-neutral-200 hover:text-accent transition">
+                  Início
                 </Link>
               </li>
               <li>
-                <Link href="/about">
-                  <a className="text-neutral-200 hover:text-accent transition">Quem Somos</a>
+                <Link href="/about" className="text-neutral-200 hover:text-accent transition">
+                  Quem Somos
                 </Link>
               </li>
             </ul>
@@ -86,11 +86,11 @@ export default function Footer() {
         <div className="border-t border-neutral-800 mt-8 pt-6 flex flex-wrap justify-between items-center">
           <p className="text-sm text-neutral-400">© {currentYear} GPT da Câmara Regional de Caruaru do TJPE. Todos os direitos reservados.</p>
           <div className="flex space-x-4 mt-4 md:mt-0">
-            <Link href="/terms">
-              <a className="text-sm text-neutral-400 hover:text-accent transition">Termos de Uso</a>
+            <Link href="/terms" className="text-sm text-neutral-400 hover:text-accent transition">
+              Termos de Uso
             </Link>
-            <Link href="/privacy">
-              <a className="text-sm text-neutral-400 hover:text-accent transition">Política de Privacidade</a>
+            <Link href="/privacy" className="text-sm text-neutral-400 hover:text-accent transition">
+              Política de Privacidade
             </Link>
           </div>
         </div>
