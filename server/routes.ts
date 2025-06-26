@@ -322,8 +322,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Received FormData:', formData);
       
       const parsedData = {
-        ...formData,
+        title: formData.title,
+        description: formData.description,
+        name: formData.name,
+        systemInstructions: formData.systemInstructions,
+        model: formData.model,
         temperature: formData.temperature ? parseInt(formData.temperature, 10) : 70,
+        category: formData.category,
+        creatorName: formData.creatorName || '',
+        imageUrl: formData.imageUrl || '',
         isFeatured: formData.isFeatured === 'true',
         isNew: formData.isNew === 'true'
       };
