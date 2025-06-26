@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
-import openai, { getAvailableModels, generateGptResponse } from "./openai";
+import openai, { getAvailableModels, generateGptResponse, createVectorStore, uploadFileToOpenAI, addFilesToVectorStore } from "./openai";
 import { 
   insertGptSchema, 
   insertFavoriteSchema, 
@@ -13,7 +13,7 @@ import {
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import path from "path";
-import upload, { handleUploadError } from "./upload";
+import upload, { uploadMemory, handleUploadError } from "./upload";
 
 // Auth middleware to check if user is authenticated
 function isAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -329,13 +329,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // File upload endpoint for GPT creation
-  app.post('/api/upload/files', isAuthenticated, upload.array('files', 10), handleUploadError, async (req: Request, res: Response) => {
+  app.post('/api/upload/files', isAuthenticated, uploadMemory.array('files', 10), handleUploadError, async (req: Request, res: Response) => {
     try {
       if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
         return res.status(400).json({ message: 'Nenhum arquivo enviado' });
       }
 
-      const { createVectorStore, uploadFileToOpenAI, addFilesToVectorStore } = require('./openai');
+
       
       // Create vector store for this set of files
       const vectorStoreName = `${req.user!.username}_files_${Date.now()}`;

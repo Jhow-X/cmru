@@ -307,7 +307,7 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
                         name="file-upload"
                         type="file"
                         multiple
-                        accept=".pdf,.txt,.docx,.md"
+                        accept=".pdf,.txt,.docx,.doc,.md,.json,.csv"
                         className="sr-only"
                         onChange={(e) => {
                           if (e.target.files) {
@@ -318,7 +318,7 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
                       />
                     </label>
                     <p className="mt-1 text-xs text-gray-500">
-                      PDF, TXT, DOCX, MD até 10 arquivos
+                      PDF, TXT, DOCX, DOC, MD, JSON, CSV até 10 arquivos
                     </p>
                   </div>
                 </div>

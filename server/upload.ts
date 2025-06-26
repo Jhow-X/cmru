@@ -31,26 +31,50 @@ const storage = multer.diskStorage({
   }
 });
 
-// Filtrar arquivos (apenas imagens)
+// Filtrar arquivos (imagens e documentos)
 const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   // Verificar o tipo MIME do arquivo
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  const allowedTypes = [
+    // Imagens
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+    // Documentos
+    'application/pdf',
+    'text/plain',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
+    'application/msword', // DOC
+    'text/markdown',
+    'application/json',
+    'text/csv'
+  ];
   
-  if (allowedTypes.includes(file.mimetype)) {
+  // Também verificar extensão do arquivo como fallback
+  const fileExtension = file.originalname.toLowerCase().split('.').pop();
+  const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'txt', 'docx', 'doc', 'md', 'json', 'csv'];
+  
+  if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension || '')) {
     // Aceitar o arquivo
     cb(null, true);
   } else {
     // Rejeitar o arquivo
-    cb(new Error('Tipo de arquivo não suportado. Apenas imagens (JPEG, PNG, GIF, WEBP) são permitidas.'));
+    cb(new Error('Tipo de arquivo não suportado. Apenas imagens (JPEG, PNG, GIF, WEBP) e documentos (PDF, TXT, DOCX, MD, JSON, CSV) são permitidos.'));
   }
 };
 
-// Configurar o uploader
+// Configurar o uploader com armazenamento em disco
 const upload = multer({
   storage,
   fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB
+  }
+});
+
+// Configurar uploader para armazenamento em memória (para uploads de arquivos do OpenAI)
+const uploadMemory = multer({
+  storage: multer.memoryStorage(),
+  fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB para documentos
   }
 });
 
@@ -76,3 +100,4 @@ export const handleUploadError = (err: any, req: Request, res: Response, next: N
 };
 
 export default upload;
+export { uploadMemory };
