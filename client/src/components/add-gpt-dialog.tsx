@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -34,7 +34,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import { Category } from "@shared/schema";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, X, File } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 // Complete GPT creation schema (same as admin)
 const createGptSchema = z.object({
@@ -59,8 +60,17 @@ interface AddGptDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface UploadedFile {
+  fileId: string;
+  filename: string;
+  size: number;
+}
+
 export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
   
   // Fetch categories
   const { data: categories = [] } = useQuery<Category[]>({
@@ -108,6 +118,7 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
       });
       onOpenChange(false);
       form.reset();
+      setUploadedFiles([]);
     },
     onError: (error: Error) => {
       toast({
@@ -117,7 +128,70 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
       });
     },
   });
+
+  // File upload mutation
+  const uploadFilesMutation = useMutation({
+    mutationFn: async (files: FileList) => {
+      const formData = new FormData();
+      Array.from(files).forEach(file => {
+        formData.append('files', file);
+      });
+
+      const response = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload files');
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setUploadedFiles(prev => [...prev, ...data.uploadedFiles]);
+      const currentFiles = form.getValues('files') || [];
+      form.setValue('files', [...currentFiles, ...data.fileIds]);
+      toast({
+        title: "Arquivos enviados",
+        description: `${data.uploadedFiles.length} arquivo(s) enviado(s) com sucesso.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro no upload",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
   
+  // File upload handlers
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      setUploadingFiles(true);
+      uploadFilesMutation.mutate(files, {
+        onSettled: () => setUploadingFiles(false)
+      });
+    }
+  };
+
+  const handleFileRemove = (fileId: string) => {
+    setUploadedFiles(prev => prev.filter(f => f.fileId !== fileId));
+    const currentFiles = form.getValues('files') || [];
+    form.setValue('files', currentFiles.filter(id => id !== fileId));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   const onSubmit = (data: CreateGptFormValues) => {
     createGptMutation.mutate(data);
   };
@@ -248,18 +322,77 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
             <FormField
               control={form.control}
               name="files"
-              render={({ field }) => (
+              render={() => (
                 <FormItem>
-                  <FormLabel>Arquivos (URLs separadas por vírgula)</FormLabel>
+                  <FormLabel>Arquivos de Referência</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="https://exemplo.com/arquivo1.pdf, https://exemplo.com/arquivo2.txt"
-                      value={field.value?.join(', ') || ''}
-                      onChange={(e) => {
-                        const urls = e.target.value.split(',').map(url => url.trim()).filter(url => url);
-                        field.onChange(urls);
-                      }}
-                    />
+                    <div className="space-y-4">
+                      {/* File Upload Button */}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadingFiles}
+                          className="flex items-center gap-2"
+                        >
+                          {uploadingFiles ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Upload className="h-4 w-4" />
+                          )}
+                          {uploadingFiles ? "Enviando..." : "Escolher Arquivos"}
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                          PDF, TXT, DOCX, MD
+                        </span>
+                      </div>
+
+                      {/* Hidden File Input */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept=".pdf,.txt,.docx,.md,.doc"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+
+                      {/* Uploaded Files List */}
+                      {uploadedFiles.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Arquivos enviados:</p>
+                          <div className="space-y-2">
+                            {uploadedFiles.map((file) => (
+                              <div
+                                key={file.fileId}
+                                className="flex items-center justify-between p-2 bg-muted rounded-md"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <File className="h-4 w-4" />
+                                  <div>
+                                    <p className="text-sm font-medium">{file.filename}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {formatFileSize(file.size)}
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleFileRemove(file.fileId)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
