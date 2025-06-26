@@ -1,69 +1,14 @@
 import OpenAI from "openai";
-import fs from "fs"; // You'll need to install 'fs' if running in a browser-like environment, or adjust for your file handling
 
-// o modelo OpenAI mais recente é "gpt-4o", lançado em 13 de maio de 2024. Não altere isso a menos que solicitado explicitamente pelo usuário.
+// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const DEFAULT_MODEL = "gpt-4o";
 
-// Inicializar o cliente OpenAI
+// Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "",
 });
 const mySecret = process.env["OPENAI_API_KEY"];
-console.log("Minha chave API é: ", mySecret);
-
-let assistantId: string | null = null;
-let vectorStoreId: string | null = null;
-
-/**
- * Configura o assistente OpenAI com a funcionalidade de busca de arquivos.
- * Cria um vector store, faz o upload dos arquivos e anexa-os ao assistente.
- * @param {string[]} filePaths - Caminhos para os arquivos a serem carregados.
- */
-export async function setupAssistantWithFiles(filePaths: string[]): Promise<void> {
-  try {
-    console.log("Configurando assistente com arquivos...");
-
-    // Upload files for use with the assistant
-    const uploadedFiles = [];
-    for (const filePath of filePaths) {
-      try {
-        const file = await openai.files.create({
-          file: fs.createReadStream(filePath),
-          purpose: "assistants",
-        });
-        uploadedFiles.push(file.id);
-        console.log(`Arquivo carregado: ${filePath} com ID: ${file.id}`);
-      } catch (fileError) {
-        console.warn(`Erro ao carregar arquivo ${filePath}:`, fileError);
-      }
-    }
-
-    // Create the assistant with uploaded files
-    const assistant = await openai.beta.assistants.create({
-      name: "Assistente Jurídico Especializado",
-      instructions: "Você é um assistente jurídico especializado. Use seu conhecimento base e os documentos fornecidos para responder às perguntas do usuário de forma precisa e útil.",
-      model: DEFAULT_MODEL,
-      tools: [{ type: "code_interpreter" }, { type: "file_search" }],
-      file_ids: uploadedFiles,
-    });
-    assistantId = assistant.id;
-    console.log("Assistente criado/atualizado com ID:", assistantId);
-    console.log("Assistente configurado com sucesso para busca de arquivos.");
-  } catch (error) {
-    console.error("Erro ao configurar o assistente com arquivos:", error);
-    throw new Error("Erro ao configurar o assistente. Tente novamente.");
-  }
-}
-
-/**
- * Função para gerar uma resposta de um GPT com configuração personalizada.
- * Utiliza o Assistente OpenAI com busca de arquivos.
- * @param {string} message - A mensagem do usuário.
- * @param {string} systemInstructions - Instruções do sistema para o GPT.
- * @param {string} model - O modelo do GPT a ser usado.
- * @param {number} temperature - A temperatura da geração (0-100).
- * @returns {Promise<string>} A resposta gerada pelo GPT.
- */
+// Function to generate a response from a GPT with custom configuration
 export async function generateGptResponse(
   message: string,
   systemInstructions: string,
@@ -72,37 +17,34 @@ export async function generateGptResponse(
   files: string[] = []
 ): Promise<string> {
   try {
-    // Use chat completions directly instead of assistants for better compatibility
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
     const response = await openai.chat.completions.create({
       model: model,
       messages: [
         {
           role: "system",
-          content: systemInstructions + (files.length > 0 
-            ? `\n\nArquivos de referência disponíveis: ${files.join(", ")}` 
-            : ""),
+          content: systemInstructions + (files.length > 0 ? `\n\nArquivos de referência disponíveis: ${files.join(', ')}` : '')
         },
         {
           role: "user",
-          content: message,
-        },
+          content: message
+        }
       ],
       temperature: temperature / 100, // Convert 0-100 to 0-1
+      max_tokens: 2000,
     });
 
     return response.choices[0].message.content || "Desculpe, não consegui gerar uma resposta.";
   } catch (error) {
-    console.error("Erro ao gerar resposta do GPT:", error);
+    console.error("Error generating GPT response:", error);
     throw new Error("Erro ao processar sua mensagem. Tente novamente.");
   }
 }
 
-/**
- * Função para analisar documentos legais.
- * @param {string} documentText - O texto do documento legal a ser analisado.
- * @returns {Promise<string>} A análise do documento.
- */
-export async function analyzeLegalDocument(documentText: string): Promise<string> {
+// Function to analyze legal documents
+export async function analyzeLegalDocument(
+  documentText: string,
+): Promise<string> {
   const systemPrompt = `
     Você é um assistente jurídico especializado na análise de documentos legais.
     Sua tarefa é analisar o documento fornecido e extrair:
@@ -114,16 +56,14 @@ export async function analyzeLegalDocument(documentText: string): Promise<string
     Forneça sua análise de forma estruturada e concisa.
   `;
 
-  return generateGptResponse(documentText, systemPrompt);
+  return generateGptResponse(systemPrompt, documentText);
 }
 
-/**
- * Função para redigir respostas legais.
- * @param {string} caseDetails - Detalhes do caso.
- * @param {string} responseType - O tipo de resposta legal a ser redigida.
- * @returns {Promise<string>} A resposta legal redigida.
- */
-export async function draftLegalResponse(caseDetails: string, responseType: string): Promise<string> {
+// Function to draft legal responses
+export async function draftLegalResponse(
+  caseDetails: string,
+  responseType: string,
+): Promise<string> {
   const systemPrompt = `
     Você é um assistente jurídico especializado na redação de documentos legais.
     Sua tarefa é redigir um(a) ${responseType} com base nos detalhes do caso fornecido.
@@ -132,14 +72,10 @@ export async function draftLegalResponse(caseDetails: string, responseType: stri
     Inclua citações de leis e jurisprudência relevantes quando apropriado.
   `;
 
-  return generateGptResponse(caseDetails, systemPrompt);
+  return generateGptResponse(systemPrompt, caseDetails);
 }
 
-/**
- * Função para obter referências legais.
- * @param {string} query - A consulta para referências legais.
- * @returns {Promise<string>} As referências legais.
- */
+// Function to get legal references
 export async function getLegalReferences(query: string): Promise<string> {
   const systemPrompt = `
     Você é um assistente jurídico especializado em pesquisa legal.
@@ -152,20 +88,18 @@ export async function getLegalReferences(query: string): Promise<string> {
     Forneça sua resposta de forma estruturada e com citações precisas.
   `;
 
-  return generateGptResponse(query, systemPrompt);
+  return generateGptResponse(systemPrompt, query);
 }
 
-/**
- * Função para obter modelos GPT disponíveis.
- * @returns {Promise<string[]>} Uma lista de IDs de modelos disponíveis.
- */
+
+
 export async function getAvailableModels(): Promise<string[]> {
   try {
     const list = await openai.models.list();
     const models: string[] = [];
 
     for await (const model of list) {
-      // Filtrar para incluir apenas modelos GPT comumente usados
+      // Filter to only include GPT models that are commonly used
       if (
         model.id.includes("gpt") &&
         !model.id.includes("instruct") &&
@@ -177,17 +111,16 @@ export async function getAvailableModels(): Promise<string[]> {
       }
     }
 
-    // Ordenar modelos do mais novo para o mais antigo
+    // Sort models with newest first
     return models.sort().reverse();
   } catch (error) {
     console.error("Erro ao obter modelos disponíveis:", error);
-    // Retornar modelos de fallback se a API falhar
+    // Return fallback models if API fails
     return ["gpt-4o", "gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"];
   }
 }
 
 export default {
-  setupAssistantWithFiles,
   generateGptResponse,
   analyzeLegalDocument,
   draftLegalResponse,
