@@ -14,6 +14,7 @@ import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import path from "path";
 import upload, { handleUploadError } from "./upload";
+import documentUpload, { handleDocumentUploadError } from "./document-upload";
 import { fileStoreService } from "./filestore-simple";
 
 // Auth middleware to check if user is authenticated
@@ -667,7 +668,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // File upload endpoints
-  app.post('/api/files/upload', isAuthenticated, upload.array('files'), handleUploadError, async (req: Request, res: Response) => {
+  app.post('/api/files/upload', isAuthenticated, documentUpload.array('files'), handleDocumentUploadError, async (req: Request, res: Response) => {
     try {
       const files = req.files as Express.Multer.File[];
 
