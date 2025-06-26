@@ -57,23 +57,13 @@ async function generateResponseWithFiles(
   files: string[]
 ): Promise<string> {
   try {
-    // Create vector store with uploaded files
-    const vectorStore = await openai.beta.vectorStores.create({
-      name: `gpt-context-${Date.now()}`,
-      file_ids: files,
-    });
-
-    // Create assistant with vector store access
+    // Create assistant with file access (simplified approach)
     const assistant = await openai.beta.assistants.create({
       name: 'Context Assistant',
       model: model,
       instructions: systemInstructions,
-      tools: [{ type: 'file_search' }],
-      tool_resources: {
-        file_search: {
-          vector_store_ids: [vectorStore.id],
-        },
-      },
+      tools: [{ type: 'retrieval' }],
+      file_ids: files,
       temperature: temperature / 100,
     });
 
@@ -115,12 +105,9 @@ async function generateResponseWithFiles(
       throw new Error('No valid response from assistant');
     }
 
-    // Cleanup assistant and vector store
+    // Cleanup assistant
     await openai.beta.assistants.del(assistant.id).catch(err => 
       console.warn('Failed to cleanup assistant:', err.message)
-    );
-    await openai.beta.vectorStores.del(vectorStore.id).catch(err => 
-      console.warn('Failed to cleanup vector store:', err.message)
     );
 
     return lastMessage.content[0].text.value;
