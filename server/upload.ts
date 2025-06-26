@@ -45,45 +45,12 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilt
   }
 };
 
-// Document file filter for GPT files
-const documentFileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  // Allowed document types for GPT file processing
-  const allowedTypes = [
-    'text/plain',
-    'text/markdown',
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'text/csv',
-    'application/json'
-  ];
-  
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Tipo de arquivo não suportado. Apenas documentos (PDF, DOC, DOCX, TXT, MD, CSV, JSON) são permitidos.'));
-  }
-};
-
-// Memory storage for file processing (files will be sent to OpenAI, not stored locally)
-const memoryStorage = multer.memoryStorage();
-
-// Configurar o uploader para imagens
+// Configurar o uploader
 const upload = multer({
   storage,
   fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB
-  }
-});
-
-// Configurar o uploader para documentos (GPT files)
-export const documentUpload = multer({
-  storage: storage, // Use disk storage for file uploads
-  fileFilter: documentFileFilter,
-  limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB for documents
-    files: 10 // Maximum 10 files per upload
   }
 });
 
@@ -93,12 +60,7 @@ export const handleUploadError = (err: any, req: Request, res: Response, next: N
     // Erro do Multer
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
-        message: 'Arquivo muito grande. O tamanho máximo permitido é 50MB para documentos.'
-      });
-    }
-    if (err.code === 'LIMIT_FILE_COUNT') {
-      return res.status(400).json({
-        message: 'Muitos arquivos. O máximo permitido é 10 arquivos por upload.'
+        message: 'Arquivo muito grande. O tamanho máximo permitido é 5MB.'
       });
     }
     return res.status(400).json({

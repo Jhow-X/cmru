@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
-import { openai, getAvailableModels, generateGptResponse, uploadFileToOpenAI, createVectorStore } from "./openai";
+import openai, { getAvailableModels, generateGptResponse } from "./openai";
 import { 
   insertGptSchema, 
   insertFavoriteSchema, 
@@ -13,8 +13,7 @@ import {
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import path from "path";
-import fs from "fs";
-import upload, { documentUpload, handleUploadError } from "./upload";
+import upload, { handleUploadError } from "./upload";
 
 // Auth middleware to check if user is authenticated
 function isAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -515,14 +514,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         content: message
       });
       
-      // Generate response using OpenAI with GPT configuration and vector store
+      // Generate response using OpenAI with GPT configuration
       const response = await generateGptResponse(
         message,
         gpt.systemInstructions,
         gpt.model,
         gpt.temperature || 70,
-        [],
-        gpt.vectorStoreId || undefined
+        gpt.files || []
       );
 
       // Save assistant message to database
@@ -561,44 +559,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar modelos:", error);
       res.status(500).json({ message: "Erro ao buscar modelos disponíveis" });
-    }
-  });
-
-  // File upload route with OpenAI vector storage
-  app.post('/api/upload/files', isAuthenticated, documentUpload.array('files', 10), handleUploadError, async (req: Request, res: Response) => {
-    try {
-      const files = req.files as Express.Multer.File[];
-
-      if (!files || files.length === 0) {
-        return res.status(400).json({ error: 'No files uploaded' });
-      }
-
-      // Upload files to OpenAI
-      const uploadedFiles = await Promise.all(
-        files.map(file =>
-          openai.files.create({
-            file: fs.createReadStream(file.path),
-            purpose: 'assistants',
-          })
-        )
-      );
-
-      // Create vector store with uploaded files
-      const vectorStoreId = await createVectorStore(`gpt-context-${Date.now()}`, uploadedFiles.map((f: any) => f.id));
-
-      // Cleanup local files
-      for (const file of files) {
-        await fs.promises.unlink(file.path);
-      }
-
-      res.json({ 
-        message: 'Files uploaded and stored', 
-        vectorStoreId: vectorStoreId,
-        fileIds: uploadedFiles.map((f: any) => f.id)
-      });
-    } catch (error) {
-      console.error('File upload error:', error);
-      res.status(500).json({ error: 'Failed to upload and store files' });
     }
   });
   
