@@ -61,6 +61,8 @@ interface AddGptDialogProps {
 
 export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) {
   const { toast } = useToast();
+  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Fetch categories
   const { data: categories = [] } = useQuery<Category[]>({
@@ -91,10 +93,55 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
     },
   });
   
+  // File upload function
+  const handleFileUpload = async (files: FileList) => {
+    if (files.length === 0) return;
+    
+    setIsUploading(true);
+    const formData = new FormData();
+    
+    for (let i = 0; i < files.length; i++) {
+      formData.append('documents', files[i]);
+    }
+    
+    try {
+      const response = await fetch('/api/upload/documents', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Falha no upload dos documentos');
+      }
+      
+      const result = await response.json();
+      const filePaths = result.files.map((file: any) => file.path);
+      setUploadedFiles(prev => [...prev, ...filePaths]);
+      
+      toast({
+        title: "Upload realizado",
+        description: `${result.files.length} documento(s) enviado(s) com sucesso.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro no upload",
+        description: "Não foi possível enviar os documentos.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // Create GPT mutation
   const createGptMutation = useMutation({
     mutationFn: async (data: CreateGptFormValues) => {
-      const response = await apiRequest("POST", "/api/gpts", data);
+      // Include uploaded files in the data
+      const gptData = {
+        ...data,
+        files: uploadedFiles,
+      };
+      const response = await apiRequest("POST", "/api/gpts", gptData);
       return response.json();
     },
     onSuccess: () => {
@@ -108,6 +155,7 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
       });
       onOpenChange(false);
       form.reset();
+      setUploadedFiles([]);
     },
     onError: (error: Error) => {
       toast({
@@ -245,26 +293,64 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
               />
             </div>
             
-            <FormField
-              control={form.control}
-              name="files"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Arquivos (URLs separadas por vírgula)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="https://exemplo.com/arquivo1.pdf, https://exemplo.com/arquivo2.txt"
-                      value={field.value?.join(', ') || ''}
-                      onChange={(e) => {
-                        const urls = e.target.value.split(',').map(url => url.trim()).filter(url => url);
-                        field.onChange(urls);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+            <div className="space-y-4">
+              <FormLabel>Documentos de Referência</FormLabel>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.txt,.csv,.json"
+                  onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+                  className="hidden"
+                  id="file-upload"
+                  disabled={isUploading}
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="cursor-pointer flex flex-col items-center space-y-2"
+                >
+                  <div className="text-gray-600">
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                        <p>Enviando documentos...</p>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-8 w-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <p>Clique para enviar documentos ou arraste aqui</p>
+                        <p className="text-sm text-gray-500">
+                          PDF, DOC, DOCX, TXT, CSV, JSON (máx. 10MB cada)
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </label>
+              </div>
+              
+              {uploadedFiles.length > 0 && (
+                <div className="space-y-2">
+                  <FormLabel>Documentos enviados:</FormLabel>
+                  <div className="bg-gray-50 p-3 rounded-md">
+                    {uploadedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between py-1">
+                        <span className="text-sm text-gray-700">{file.split('/').pop()}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setUploadedFiles(prev => prev.filter((_, i) => i !== index))}
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
-            />
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField

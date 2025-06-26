@@ -125,6 +125,11 @@ The application provides a Netflix-style interface for browsing legal GPTs, user
 - June 25, 2025: Completed database-backed persistent messaging system with PostgreSQL storage
 - June 25, 2025: Messages now survive page reloads and only clear when "Limpar" button is clicked
 - June 25, 2025: Enhanced user GPT creation capabilities - regular users now have full admin-level GPT creation features including system instructions, model selection, temperature settings, and file attachments
+- June 26, 2025: Complete application rebuild addressing all structural issues and implementing file upload functionality for vector store creation
+- June 26, 2025: Replaced URL-based file input with drag-and-drop file upload interface in admin GPT creation
+- June 26, 2025: Added document upload endpoint supporting PDF, DOC, DOCX, TXT, CSV, and JSON files for GPT context
+- June 26, 2025: Updated OpenAI integration to use current API methods with file context reading for enhanced GPT responses
+- June 26, 2025: Fixed all JSX syntax errors, React Query deprecated options, and type safety issues
 
 ## User Preferences
 
