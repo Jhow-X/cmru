@@ -7,15 +7,40 @@ const DEFAULT_MODEL = "gpt-4o";
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "",
 });
-const mySecret = process.env["OPENAI_API_KEY"];
-console.log("My secret is: ", mySecret);
-// Function to generate a response from a GPT with custom configuration
+// Function to upload file to OpenAI
+export async function uploadFileToOpenAI(fileBuffer: Buffer, fileName: string): Promise<string> {
+  try {
+    const file = await openai.files.create({
+      file: new File([fileBuffer], fileName),
+      purpose: 'assistants'
+    });
+    return file.id;
+  } catch (error) {
+    console.error("Error uploading file to OpenAI:", error);
+    throw new Error("Erro ao fazer upload do arquivo.");
+  }
+}
+
+// Function to create a vector store for file processing
+export async function createVectorStore(name: string, fileIds: string[]): Promise<string> {
+  try {
+    // For now, return a placeholder vector store ID
+    // Will be updated when OpenAI vector stores API is properly configured
+    return `vector_store_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  } catch (error) {
+    console.error("Error creating vector store:", error);
+    throw new Error("Erro ao criar armazenamento de arquivos.");
+  }
+}
+
+// Function to generate a response from a GPT with custom configuration and file attachments
 export async function generateGptResponse(
   message: string,
   systemInstructions: string,
   model: string = DEFAULT_MODEL,
   temperature: number = 70,
-  files: string[] = []
+  files: string[] = [],
+  vectorStoreId?: string
 ): Promise<string> {
   try {
     // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user

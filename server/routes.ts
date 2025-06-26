@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
-import openai, { getAvailableModels, generateGptResponse } from "./openai";
+import openai, { getAvailableModels, generateGptResponse, uploadFileToOpenAI, createVectorStore } from "./openai";
 import { 
   insertGptSchema, 
   insertFavoriteSchema, 
@@ -13,7 +13,7 @@ import {
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import path from "path";
-import upload, { handleUploadError } from "./upload";
+import upload, { documentUpload, handleUploadError } from "./upload";
 
 // Auth middleware to check if user is authenticated
 function isAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -514,13 +514,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         content: message
       });
       
-      // Generate response using OpenAI with GPT configuration
+      // Generate response using OpenAI with GPT configuration and vector store
       const response = await generateGptResponse(
         message,
         gpt.systemInstructions,
         gpt.model,
         gpt.temperature || 70,
-        gpt.files || []
+        gpt.files || [],
+        gpt.vectorStoreId || undefined
       );
 
       // Save assistant message to database
@@ -559,6 +560,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar modelos:", error);
       res.status(500).json({ message: "Erro ao buscar modelos disponíveis" });
+    }
+  });
+
+  // File upload route with OpenAI vector storage
+  app.post('/api/upload/files', isAuthenticated, documentUpload.array('files', 10), handleUploadError, async (req: Request, res: Response) => {
+    try {
+      if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+        return res.status(400).json({ message: 'Nenhum arquivo foi enviado' });
+      }
+
+      const { gptName } = req.body;
+      if (!gptName) {
+        return res.status(400).json({ message: 'Nome do GPT é obrigatório' });
+      }
+
+      // Upload files to OpenAI
+      const uploadedFiles = [];
+      for (const file of req.files) {
+        try {
+          const fileId = await uploadFileToOpenAI(file.buffer, file.originalname);
+          uploadedFiles.push({
+            id: fileId,
+            name: file.originalname,
+            size: file.size,
+            type: file.mimetype
+          });
+        } catch (error) {
+          console.error(`Erro ao fazer upload do arquivo ${file.originalname}:`, error);
+          return res.status(500).json({ 
+            message: `Erro ao fazer upload do arquivo ${file.originalname}` 
+          });
+        }
+      }
+
+      // Create vector store with uploaded files
+      const fileIds = uploadedFiles.map(f => f.id);
+      const vectorStoreId = await createVectorStore(gptName, fileIds);
+
+      res.json({
+        message: 'Arquivos enviados com sucesso',
+        files: uploadedFiles,
+        vectorStoreId: vectorStoreId
+      });
+    } catch (error) {
+      console.error('Erro no upload de arquivos:', error);
+      res.status(500).json({ 
+        message: 'Erro interno do servidor ao processar arquivos' 
+      });
     }
   });
   
