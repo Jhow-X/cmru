@@ -521,7 +521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gpt.systemInstructions,
         gpt.model,
         gpt.temperature || 70,
-        gpt.files || [],
+        [],
         gpt.vectorStoreId || undefined
       );
 

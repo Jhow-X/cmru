@@ -45,7 +45,7 @@ const createGptSchema = z.object({
   systemInstructions: z.string().min(10, "Instruções do sistema devem ter pelo menos 10 caracteres"),
   model: z.string().min(1, "Modelo é obrigatório"),
   temperature: z.number().min(0).max(100).default(70),
-  files: z.array(z.string()).default([]),
+
   category: z.string().min(1, "Categoria é obrigatória"),
   creatorName: z.string().optional(),
   imageUrl: z.string().optional(),
@@ -86,7 +86,7 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
       systemInstructions: "",
       model: "gpt-4o",
       temperature: 70,
-      files: [],
+
       category: "",
       creatorName: "",
       imageUrl: "",
@@ -116,7 +116,7 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
     },
     onSuccess: (data) => {
       setVectorStoreId(data.vectorStoreId);
-      form.setValue('files', data.files.map((f: any) => f.name));
+
       toast({
         title: "Arquivos enviados com sucesso",
         description: `${data.files.length} arquivo(s) processado(s) e armazenado(s) no OpenAI.`,
@@ -220,7 +220,7 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
         </DialogHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit as any)} className="space-y-4">
             <FormField
               control={form.control}
               name="title"
@@ -332,26 +332,7 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
               />
             </div>
             
-            <FormField
-              control={form.control}
-              name="files"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Arquivos (URLs separadas por vírgula)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="https://exemplo.com/arquivo1.pdf, https://exemplo.com/arquivo2.txt"
-                      value={field.value?.join(', ') || ''}
-                      onChange={(e) => {
-                        const urls = e.target.value.split(',').map(url => url.trim()).filter(url => url);
-                        field.onChange(urls);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
