@@ -121,95 +121,10 @@ export async function getAvailableModels(): Promise<string[]> {
   }
 }
 
-// Vector Store functions for file search
-export async function createVectorStore(name: string): Promise<string> {
-  try {
-    // Using the files API for now since vector stores might not be available in current API version
-    console.log("Creating vector store with name:", name);
-    
-    // For now, return a mock ID until we can confirm vector stores API availability
-    const mockVectorStoreId = `vs_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.log("Generated vector store ID:", mockVectorStoreId);
-    
-    return mockVectorStoreId;
-  } catch (error) {
-    console.error("Error creating vector store:", error);
-    throw new Error("Erro ao criar vector store.");
-  }
-}
-
-export async function uploadFileToOpenAI(fileBuffer: Buffer, fileName: string): Promise<string> {
-  try {
-    console.log("Uploading file to OpenAI:", fileName, "Size:", fileBuffer.length);
-    
-    // Temporary implementation: Generate a mock file ID until OpenAI API issues are resolved
-    // In production, this would upload to OpenAI and return the actual file ID
-    const mockFileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    console.log("File processed successfully, Mock ID:", mockFileId);
-    console.log("Note: Using mock file ID until OpenAI API configuration is resolved");
-    
-    return mockFileId;
-  } catch (error) {
-    console.error("Error processing file:", error);
-    throw new Error("Erro ao processar arquivo.");
-  }
-}
-
-export async function addFilesToVectorStore(vectorStoreId: string, fileIds: string[]): Promise<void> {
-  try {
-    console.log("Adding files to vector store:", vectorStoreId, fileIds);
-    
-    // For now, just log the operation since vector stores API might not be available
-    for (const fileId of fileIds) {
-      console.log("Would add file to vector store:", fileId, "to", vectorStoreId);
-    }
-    
-    console.log("Files successfully associated with vector store");
-  } catch (error) {
-    console.error("Error adding files to vector store:", error);
-    throw new Error("Erro ao adicionar arquivos ao vector store.");
-  }
-}
-
-export async function createAssistantWithVectorStore(
-  name: string,
-  instructions: string,
-  model: string,
-  vectorStoreId?: string
-): Promise<string> {
-  try {
-    const assistantConfig: any = {
-      name,
-      instructions,
-      model,
-      tools: [{ type: "file_search" }],
-    };
-
-    if (vectorStoreId) {
-      assistantConfig.tool_resources = {
-        file_search: {
-          vector_store_ids: [vectorStoreId],
-        },
-      };
-    }
-
-    const assistant = await openai.beta.assistants.create(assistantConfig);
-    return assistant.id;
-  } catch (error) {
-    console.error("Error creating assistant:", error);
-    throw new Error("Erro ao criar assistente OpenAI.");
-  }
-}
-
 export default {
   generateGptResponse,
   analyzeLegalDocument,
   draftLegalResponse,
   getLegalReferences,
   getAvailableModels,
-  createVectorStore,
-  uploadFileToOpenAI,
-  addFilesToVectorStore,
-  createAssistantWithVectorStore,
 };

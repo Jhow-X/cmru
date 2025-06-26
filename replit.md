@@ -125,10 +125,6 @@ The application provides a Netflix-style interface for browsing legal GPTs, user
 - June 25, 2025: Completed database-backed persistent messaging system with PostgreSQL storage
 - June 25, 2025: Messages now survive page reloads and only clear when "Limpar" button is clicked
 - June 25, 2025: Enhanced user GPT creation capabilities - regular users now have full admin-level GPT creation features including system instructions, model selection, temperature settings, and file attachments
-- June 26, 2025: Implemented OpenAI vector store API integration for file uploads in GPT creation forms
-- June 26, 2025: Added drag-and-drop file upload interface replacing text-based file URL input
-- June 26, 2025: Files now automatically upload to OpenAI vector stores for enhanced file search capabilities
-- June 26, 2025: Both My GPTs and admin "Novo GPT" buttons now use identical comprehensive forms with file upload
 
 ## User Preferences
 
