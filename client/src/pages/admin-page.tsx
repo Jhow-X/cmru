@@ -115,7 +115,6 @@ export default function AdminPage() {
     systemInstructions: z.string().min(10, "Instruções do sistema devem ter pelo menos 10 caracteres"),
     model: z.string().min(1, "Modelo é obrigatório"),
     temperature: z.number().min(0).max(100).default(70),
-    files: z.array(z.string()).default([]),
     category: z.string().min(1, "Categoria é obrigatória"),
     creatorName: z.string().optional(),
 
@@ -155,7 +154,6 @@ export default function AdminPage() {
       systemInstructions: "",
       model: "gpt-4o",
       temperature: 70,
-      files: [],
       category: "",
       creatorName: "",
       imageUrl: "",
@@ -349,7 +347,6 @@ export default function AdminPage() {
         systemInstructions: gpt.systemInstructions,
         model: gpt.model,
         temperature: gpt.temperature || 70,
-        files: gpt.files || [],
         category: gpt.category,
         creatorName: gpt.creatorName || "",
         imageUrl: gpt.imageUrl || "",
@@ -365,7 +362,6 @@ export default function AdminPage() {
         systemInstructions: "",
         model: "gpt-4o",
         temperature: 70,
-        files: [],
         category: "",
         creatorName: "",
         imageUrl: "",
@@ -892,7 +888,6 @@ export default function AdminPage() {
                                     model: gpt.model || "gpt-4",
                                     temperature: (gpt.temperature ?? 70) as number,
                                     category: gpt.category,
-                                    files: gpt.files || [],
                                     creatorName: gpt.creatorName || undefined,
                                     imageUrl: gpt.imageUrl || undefined,
                                     isFeatured: true,
@@ -915,7 +910,6 @@ export default function AdminPage() {
                                     model: gpt.model || "gpt-4",
                                     temperature: (gpt.temperature ?? 70) as number,
                                     category: gpt.category,
-                                    files: gpt.files || [],
                                     creatorName: gpt.creatorName || undefined,
                                     imageUrl: gpt.imageUrl || undefined,
                                     isFeatured: false,
@@ -1551,30 +1545,7 @@ export default function AdminPage() {
                 />
               </div>
               
-              <FormField
-                control={gptForm.control}
-                name="files"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Arquivos (URLs separadas por vírgula)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="https://exemplo.com/arquivo1.pdf, https://exemplo.com/arquivo2.txt"
-                        value={field.value?.join(', ') || ''}
-                        onChange={(e) => {
-                          const files = e.target.value.split(',').map(f => f.trim()).filter(f => f);
-                          field.onChange(files);
-                        }}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      URLs dos arquivos que o GPT pode referenciar, separadas por vírgula
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
+
               <FormField
                 control={gptForm.control}
                 name="category"
