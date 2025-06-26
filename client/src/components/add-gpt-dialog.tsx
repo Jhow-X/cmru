@@ -119,7 +119,7 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
 
       toast({
         title: "Arquivos enviados com sucesso",
-        description: `${data.files.length} arquivo(s) processado(s) e armazenado(s) no OpenAI.`,
+        description: `${data.fileIds?.length || 0} arquivo(s) processado(s) e armazenado(s) no OpenAI.`,
       });
     },
     onError: (error) => {
