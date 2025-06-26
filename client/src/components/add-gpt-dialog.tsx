@@ -97,10 +97,15 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
     mutationFn: async (data: CreateGptFormValues) => {
       const formData = new FormData();
       
-      // Add text fields
+      // Add text fields with proper type conversion
       Object.entries(data).forEach(([key, value]) => {
         if (key !== 'files' && value !== undefined && value !== null) {
-          formData.append(key, String(value));
+          // Convert boolean and number types properly
+          if (typeof value === 'boolean' || typeof value === 'number') {
+            formData.append(key, value.toString());
+          } else {
+            formData.append(key, String(value));
+          }
         }
       });
       

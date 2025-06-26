@@ -317,7 +317,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Updated GPT creation route with Vector Store integration
   app.post("/api/gpts", isMagistrate, upload.array('files'), handleUploadError, async (req, res) => {
     try {
-      const gptData = insertGptSchema.parse(req.body);
+      // Parse FormData properly - convert string values to correct types
+      const formData = req.body;
+      console.log('Received FormData:', formData);
+      
+      const parsedData = {
+        ...formData,
+        temperature: formData.temperature ? parseInt(formData.temperature, 10) : 70,
+        isFeatured: formData.isFeatured === 'true',
+        isNew: formData.isNew === 'true'
+      };
+      
+      console.log('Parsed data for validation:', parsedData);
+      const gptData = insertGptSchema.parse(parsedData);
       const files = req.files as Express.Multer.File[] || [];
       
       let assistantId = '';
