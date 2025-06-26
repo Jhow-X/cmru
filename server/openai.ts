@@ -121,10 +121,83 @@ export async function getAvailableModels(): Promise<string[]> {
   }
 }
 
+// Vector Store functions for file search
+export async function createVectorStore(name: string): Promise<string> {
+  try {
+    const vectorStore = await openai.beta.vectorStores.create({
+      name: name,
+    });
+    return vectorStore.id;
+  } catch (error) {
+    console.error("Error creating vector store:", error);
+    throw new Error("Erro ao criar vector store.");
+  }
+}
+
+export async function uploadFileToOpenAI(fileBuffer: Buffer, fileName: string): Promise<string> {
+  try {
+    const file = await openai.files.create({
+      file: new File([fileBuffer], fileName),
+      purpose: "assistants",
+    });
+    return file.id;
+  } catch (error) {
+    console.error("Error uploading file to OpenAI:", error);
+    throw new Error("Erro ao enviar arquivo para OpenAI.");
+  }
+}
+
+export async function addFilesToVectorStore(vectorStoreId: string, fileIds: string[]): Promise<void> {
+  try {
+    for (const fileId of fileIds) {
+      await openai.beta.vectorStores.files.create(vectorStoreId, {
+        file_id: fileId,
+      });
+    }
+  } catch (error) {
+    console.error("Error adding files to vector store:", error);
+    throw new Error("Erro ao adicionar arquivos ao vector store.");
+  }
+}
+
+export async function createAssistantWithVectorStore(
+  name: string,
+  instructions: string,
+  model: string,
+  vectorStoreId?: string
+): Promise<string> {
+  try {
+    const assistantConfig: any = {
+      name,
+      instructions,
+      model,
+      tools: [{ type: "file_search" }],
+    };
+
+    if (vectorStoreId) {
+      assistantConfig.tool_resources = {
+        file_search: {
+          vector_store_ids: [vectorStoreId],
+        },
+      };
+    }
+
+    const assistant = await openai.beta.assistants.create(assistantConfig);
+    return assistant.id;
+  } catch (error) {
+    console.error("Error creating assistant:", error);
+    throw new Error("Erro ao criar assistente OpenAI.");
+  }
+}
+
 export default {
   generateGptResponse,
   analyzeLegalDocument,
   draftLegalResponse,
   getLegalReferences,
   getAvailableModels,
+  createVectorStore,
+  uploadFileToOpenAI,
+  addFilesToVectorStore,
+  createAssistantWithVectorStore,
 };

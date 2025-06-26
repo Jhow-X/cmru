@@ -327,6 +327,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar GPT" });
     }
   });
+
+  // File upload endpoint for GPT creation
+  app.post('/api/upload/files', isAuthenticated, upload.array('files', 10), handleUploadError, async (req: Request, res: Response) => {
+    try {
+      if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+        return res.status(400).json({ message: 'Nenhum arquivo enviado' });
+      }
+
+      const { createVectorStore, uploadFileToOpenAI, addFilesToVectorStore } = require('./openai');
+      
+      // Create vector store for this set of files
+      const vectorStoreName = `${req.user!.username}_files_${Date.now()}`;
+      const vectorStoreId = await createVectorStore(vectorStoreName);
+      
+      const fileIds: string[] = [];
+      const fileInfo: any[] = [];
+      
+      // Upload each file to OpenAI
+      for (const file of req.files) {
+        const fileId = await uploadFileToOpenAI(file.buffer, file.originalname);
+        fileIds.push(fileId);
+        fileInfo.push({
+          id: fileId,
+          name: file.originalname,
+          size: file.size,
+          type: file.mimetype
+        });
+      }
+      
+      // Add files to vector store
+      await addFilesToVectorStore(vectorStoreId, fileIds);
+      
+      res.json({
+        vectorStoreId,
+        files: fileInfo,
+        message: 'Arquivos enviados com sucesso'
+      });
+    } catch (error) {
+      console.error('Erro no upload de arquivos:', error);
+      res.status(500).json({ message: 'Erro interno do servidor ao processar arquivos' });
+    }
+  });
   
   app.put("/api/gpts/:id", isMagistrate, async (req, res) => {
     try {
