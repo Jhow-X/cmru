@@ -50,7 +50,7 @@ export async function generateGptResponse(
         },
       ],
       temperature: temperature / 100,
-      max_tokens: 2000,
+      max_tokens: 1000, // Reduced to ensure we stay within token limits
     });
 
     return response.choices[0]?.message?.content || "Desculpe, não consegui gerar uma resposta.";
@@ -60,14 +60,24 @@ export async function generateGptResponse(
   }
 }
 
-// Helper function to read file contents
+// Helper function to read and truncate file contents to manage token limits
 async function readFilesContent(filePaths: string[]): Promise<string> {
   try {
+    const maxTokensPerFile = 5000; // Limit per file to prevent token overflow
+    const maxCharsPerFile = maxTokensPerFile * 3; // Rough estimate: 1 token ≈ 3 chars
+    
     const contents = await Promise.all(
       filePaths.map(async (filePath) => {
         try {
-          const content = await fs.promises.readFile(filePath, 'utf-8');
+          let content = await fs.promises.readFile(filePath, 'utf-8');
           const fileName = path.basename(filePath);
+          
+          // Truncate content if it's too large
+          if (content.length > maxCharsPerFile) {
+            content = content.substring(0, maxCharsPerFile) + 
+              `\n\n[... Conteúdo truncado para evitar excesso de tokens. Arquivo original tem ${content.length} caracteres ...]`;
+          }
+          
           return `=== ${fileName} ===\n${content}\n`;
         } catch (error) {
           console.warn(`Could not read file: ${filePath}`, error);
@@ -75,7 +85,17 @@ async function readFilesContent(filePaths: string[]): Promise<string> {
         }
       })
     );
-    return contents.join('\n');
+    
+    let result = contents.join('\n');
+    
+    // Final safety check - if combined content is still too large, truncate further
+    const maxTotalChars = 15000; // Conservative limit for all files combined
+    if (result.length > maxTotalChars) {
+      result = result.substring(0, maxTotalChars) + 
+        '\n\n[... Contexto truncado para respeitar limites de tokens da API ...]';
+    }
+    
+    return result;
   } catch (error) {
     console.error("Error reading files:", error);
     return "";

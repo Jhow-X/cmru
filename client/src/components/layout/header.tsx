@@ -65,11 +65,9 @@ export default function Header() {
       <div className="flex flex-wrap items-center justify-between">
         {/* Logo and Title */}
         <div className="flex items-center">
-          <Link href="/">
-            <a className="flex items-center">
-              <i className="ri-scales-3-line text-2xl text-accent mr-2"></i>
-              <h1 className="text-lg font-bold">GPT da Câmara Regional de Caruaru do TJPE</h1>
-            </a>
+          <Link href="/" className="flex items-center">
+            <i className="ri-scales-3-line text-2xl text-accent mr-2"></i>
+            <h1 className="text-lg font-bold">GPT da Câmara Regional de Caruaru do TJPE</h1>
           </Link>
         </div>
         
@@ -78,43 +76,33 @@ export default function Header() {
           <nav>
             <ul className="flex space-x-6">
               <li>
-                <Link href="/">
-                  <a className={`hover:text-accent transition ${location === '/' ? 'text-accent' : ''}`}>
-                    Início
-                  </a>
+                <Link href="/" className={`hover:text-accent transition ${location === '/' ? 'text-accent' : ''}`}>
+                  Início
                 </Link>
               </li>
               <li>
-                <Link href="/chat">
-                  <a className={`hover:text-accent transition ${location === '/chat' ? 'text-accent' : ''}`}>
-                    Chat
-                  </a>
+                <Link href="/chat" className={`hover:text-accent transition ${location === '/chat' ? 'text-accent' : ''}`}>
+                  Chat
                 </Link>
               </li>
               <li>
-                <Link href="/favorites">
-                  <a className={`hover:text-accent transition ${location === '/favorites' ? 'text-accent' : ''}`}>
-                    Favoritos
-                  </a>
+                <Link href="/favorites" className={`hover:text-accent transition ${location === '/favorites' ? 'text-accent' : ''}`}>
+                  Favoritos
                 </Link>
               </li>
               {/* Admin-only menu item */}
               {user && user.role === 'admin' && (
                 <li>
-                  <Link href="/admin">
-                    <a className={`hover:text-accent transition ${location === '/admin' ? 'text-accent' : ''}`}>
-                      Administração
-                    </a>
+                  <Link href="/admin" className={`hover:text-accent transition ${location === '/admin' ? 'text-accent' : ''}`}>
+                    Administração
                   </Link>
                 </li>
               )}
               {/* Magistrate-only menu item */}
               {user && (user.role === 'magistrate' || user.role === 'admin') && (
                 <li>
-                  <Link href="/my-gpts">
-                    <a className={`hover:text-accent transition ${location === '/my-gpts' ? 'text-accent' : ''}`}>
-                      Meus GPTs
-                    </a>
+                  <Link href="/my-gpts" className={`hover:text-accent transition ${location === '/my-gpts' ? 'text-accent' : ''}`}>
+                    Meus GPTs
                   </Link>
                 </li>
               )}
@@ -154,28 +142,20 @@ export default function Header() {
       {isMobileMenuOpen && (
         <div className="md:hidden mt-4">
           <nav className="flex flex-col space-y-3">
-            <Link href="/">
-              <a className={`hover:text-accent transition ${location === '/' ? 'text-accent' : ''}`}>
-                Início
-              </a>
+            <Link href="/" className={`hover:text-accent transition ${location === '/' ? 'text-accent' : ''}`}>
+              Início
             </Link>
-            <Link href="/favorites">
-              <a className={`hover:text-accent transition ${location === '/favorites' ? 'text-accent' : ''}`}>
-                Favoritos
-              </a>
+            <Link href="/favorites" className={`hover:text-accent transition ${location === '/favorites' ? 'text-accent' : ''}`}>
+              Favoritos
             </Link>
             {user && (user.role === 'magistrate' || user.role === 'admin') && (
-              <Link href="/my-gpts">
-                <a className={`hover:text-accent transition ${location === '/my-gpts' ? 'text-accent' : ''}`}>
-                  Meus GPTs
-                </a>
+              <Link href="/my-gpts" className={`hover:text-accent transition ${location === '/my-gpts' ? 'text-accent' : ''}`}>
+                Meus GPTs
               </Link>
             )}
             {user && user.role === 'admin' && (
-              <Link href="/admin">
-                <a className={`hover:text-accent transition ${location === '/admin' ? 'text-accent' : ''}`}>
-                  Administração
-                </a>
+              <Link href="/admin" className={`hover:text-accent transition ${location === '/admin' ? 'text-accent' : ''}`}>
+                Administração
               </Link>
             )}
             
