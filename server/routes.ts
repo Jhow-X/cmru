@@ -587,8 +587,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const vectorStoreId = await createVectorStore(`gpt-context-${Date.now()}`, uploadedFiles.map((f: any) => f.id));
 
       // Cleanup local files
+      const fsPromises = require('fs').promises;
       for (const file of files) {
-        await fs.promises.unlink(file.path);
+        await fsPromises.unlink(file.path);
       }
 
       res.json({ 
