@@ -33,7 +33,10 @@ const storage = multer.diskStorage({
 
 // Filtrar arquivos (imagens e documentos para Vector Store)
 const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  // Verificar o tipo MIME do arquivo
+  // Log do tipo de arquivo para debug
+  console.log(`File upload attempt: ${file.originalname}, MIME type: ${file.mimetype}`);
+  
+  // Verificar o tipo MIME do arquivo e extensão como fallback
   const allowedTypes = [
     // Imagens (para avatares/thumbnails)
     'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
@@ -43,14 +46,21 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilt
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/json',
-    'text/markdown'
+    'text/markdown',
+    // Tipos alternativos que podem aparecer
+    'application/x-pdf',
+    'text/x-markdown'
   ];
   
-  if (allowedTypes.includes(file.mimetype)) {
-    // Aceitar o arquivo
+  // Verificar extensão como fallback
+  const fileExtension = path.extname(file.originalname).toLowerCase();
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.txt', '.doc', '.docx', '.json', '.md'];
+  
+  if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
+    console.log(`File accepted: ${file.originalname}`);
     cb(null, true);
   } else {
-    // Rejeitar o arquivo
+    console.log(`File rejected: ${file.originalname}, MIME: ${file.mimetype}, Extension: ${fileExtension}`);
     cb(new Error('Tipo de arquivo não suportado. Permitidos: imagens (JPEG, PNG, GIF, WEBP) e documentos (PDF, TXT, DOC, DOCX, JSON, MD).'));
   }
 };
