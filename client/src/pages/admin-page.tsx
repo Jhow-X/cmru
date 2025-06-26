@@ -791,11 +791,8 @@ export default function AdminPage() {
             <TabsContent value="gpts">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold">Gerenciamento de GPTs</h2>
-                <Button 
-                  onClick={() => openGptDialog()}
-                  className="bg-accent hover:bg-accent-hover"
-                >
-                  <PlusCircle className="h-4 w-4 mr-2" />
+                <Button onClick={() => openGptDialog()} className="flex items-center gap-1">
+                  <PlusCircle className="h-4 w-4" />
                   Novo GPT
                 </Button>
               </div>

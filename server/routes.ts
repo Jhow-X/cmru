@@ -332,7 +332,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         creatorName: formData.creatorName || '',
         imageUrl: formData.imageUrl || '',
         isFeatured: formData.isFeatured === 'true',
-        isNew: formData.isNew === 'true'
+        isNew: formData.isNew === 'true',
+        createdBy: req.user.id
       };
       
       console.log('Parsed data for validation:', parsedData);
