@@ -15,7 +15,7 @@ export async function generateGptResponse(
   systemInstructions: string,
   model: string = DEFAULT_MODEL,
   temperature: number = 70,
-  files: string[] = []
+  files: string[] = [],
 ): Promise<string> {
   try {
     // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -24,18 +24,24 @@ export async function generateGptResponse(
       messages: [
         {
           role: "system",
-          content: systemInstructions + (files.length > 0 ? `\n\nArquivos de referência disponíveis: ${files.join(', ')}` : '')
+          content:
+            systemInstructions +
+            (files.length > 0
+              ? `\n\nArquivos de referência disponíveis: ${files.join(", ")}`
+              : ""),
         },
         {
           role: "user",
-          content: message
-        }
+          content: message,
+        },
       ],
       temperature: temperature / 100, // Convert 0-100 to 0-1
-      max_tokens: 2000,
     });
 
-    return response.choices[0].message.content || "Desculpe, não consegui gerar uma resposta.";
+    return (
+      response.choices[0].message.content ||
+      "Desculpe, não consegui gerar uma resposta."
+    );
   } catch (error) {
     console.error("Error generating GPT response:", error);
     throw new Error("Erro ao processar sua mensagem. Tente novamente.");
@@ -91,8 +97,6 @@ export async function getLegalReferences(query: string): Promise<string> {
 
   return generateGptResponse(systemPrompt, query);
 }
-
-
 
 export async function getAvailableModels(): Promise<string[]> {
   try {
