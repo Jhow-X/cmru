@@ -18,13 +18,19 @@ export async function generateGptResponse(
   files: string[] = []
 ): Promise<string> {
   try {
+    // If files are provided, use the assistants API with vector stores
+    if (files.length > 0) {
+      return await generateResponseWithFiles(message, systemInstructions, model, temperature, files);
+    }
+
+    // Otherwise use regular chat completions
     // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
     const response = await openai.chat.completions.create({
       model: model,
       messages: [
         {
           role: "system",
-          content: systemInstructions + (files.length > 0 ? `\n\nArquivos de referência disponíveis: ${files.join(', ')}` : '')
+          content: systemInstructions
         },
         {
           role: "user",
@@ -39,6 +45,88 @@ export async function generateGptResponse(
   } catch (error) {
     console.error("Error generating GPT response:", error);
     throw new Error("Erro ao processar sua mensagem. Tente novamente.");
+  }
+}
+
+// Function to generate response using assistants API with uploaded files
+async function generateResponseWithFiles(
+  message: string,
+  systemInstructions: string,
+  model: string,
+  temperature: number,
+  files: string[]
+): Promise<string> {
+  try {
+    // Create vector store with uploaded files
+    const vectorStore = await openai.beta.vectorStores.create({
+      name: `gpt-context-${Date.now()}`,
+      file_ids: files,
+    });
+
+    // Create assistant with vector store access
+    const assistant = await openai.beta.assistants.create({
+      name: 'Context Assistant',
+      model: model,
+      instructions: systemInstructions,
+      tools: [{ type: 'file_search' }],
+      tool_resources: {
+        file_search: {
+          vector_store_ids: [vectorStore.id],
+        },
+      },
+      temperature: temperature / 100,
+    });
+
+    // Create thread
+    const thread = await openai.beta.threads.create();
+
+    // Add message to thread
+    await openai.beta.threads.messages.create(thread.id, {
+      role: 'user',
+      content: message,
+    });
+
+    // Run the assistant
+    const run = await openai.beta.threads.runs.create(thread.id, {
+      assistant_id: assistant.id,
+    });
+
+    // Poll until the run is completed
+    let runStatus = run.status;
+    let attempts = 0;
+    const maxAttempts = 30; // 30 seconds timeout
+    
+    while (runStatus !== 'completed' && runStatus !== 'failed' && attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const updatedRun = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+      runStatus = updatedRun.status;
+      attempts++;
+    }
+
+    if (runStatus === 'failed' || attempts >= maxAttempts) {
+      throw new Error('Assistant run failed or timed out');
+    }
+
+    // Get the response
+    const messages = await openai.beta.threads.messages.list(thread.id);
+    const lastMessage = messages.data.find(m => m.role === 'assistant');
+
+    if (!lastMessage || !lastMessage.content[0] || lastMessage.content[0].type !== 'text') {
+      throw new Error('No valid response from assistant');
+    }
+
+    // Cleanup assistant and vector store
+    await openai.beta.assistants.del(assistant.id).catch(err => 
+      console.warn('Failed to cleanup assistant:', err.message)
+    );
+    await openai.beta.vectorStores.del(vectorStore.id).catch(err => 
+      console.warn('Failed to cleanup vector store:', err.message)
+    );
+
+    return lastMessage.content[0].text.value;
+  } catch (error) {
+    console.error("Error generating response with files:", error);
+    throw new Error("Erro ao processar sua mensagem com arquivos. Tente novamente.");
   }
 }
 
