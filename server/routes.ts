@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
-import { getAvailableModels, generateGptResponse } from "./openai";
+import openai, { getAvailableModels, generateGptResponse } from "./openai";
 import { 
   insertGptSchema, 
   insertFavoriteSchema, 
@@ -13,7 +13,7 @@ import {
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import path from "path";
-import upload, { documentUpload, handleUploadError } from "./upload";
+import upload, { handleUploadError } from "./upload";
 
 // Auth middleware to check if user is authenticated
 function isAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -75,27 +75,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       originalName: req.file.originalname,
       size: req.file.size,
       message: 'Imagem enviada com sucesso'
-    });
-  });
-
-  // Rota para upload de documentos (para GPTs)
-  app.post('/api/upload/documents', isAuthenticated, documentUpload.array('documents', 5), handleUploadError, (req: Request, res: Response) => {
-    if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
-      return res.status(400).json({ message: 'Nenhum documento enviado' });
-    }
-    
-    // Processar arquivos enviados
-    const uploadedFiles = req.files.map(file => ({
-      filename: file.filename,
-      originalName: file.originalname,
-      path: file.path,
-      size: file.size,
-      mimetype: file.mimetype
-    }));
-    
-    res.status(200).json({ 
-      files: uploadedFiles,
-      message: `${uploadedFiles.length} documento(s) enviado(s) com sucesso`
     });
   });
   

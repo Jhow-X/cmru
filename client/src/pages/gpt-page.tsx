@@ -9,11 +9,11 @@ import Footer from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Star, BookmarkPlus, BookmarkCheck, ExternalLink, MessageSquare } from "lucide-react";
+import { ArrowLeft, Star, BookmarkPlus, BookmarkCheck, ExternalLink } from "lucide-react";
 
 export default function GptPage() {
   const { id } = useParams();
-  const gptId = parseInt(id || "0");
+  const gptId = parseInt(id);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [isFavorite, setIsFavorite] = useState(false);
@@ -25,19 +25,25 @@ export default function GptPage() {
     error: gptError
   } = useQuery<Gpt>({
     queryKey: [`/api/gpts/${gptId}`],
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os detalhes deste GPT.",
+        variant: "destructive",
+      });
+      navigate("/");
+    },
   });
 
   // Check if GPT is in favorites
   const { data: favorites } = useQuery<Gpt[]>({
     queryKey: ["/api/favorites"],
+    onSuccess: (data) => {
+      if (data.some(favorite => favorite.id === gptId)) {
+        setIsFavorite(true);
+      }
+    },
   });
-
-  // Update favorite status when favorites data changes
-  useEffect(() => {
-    if (favorites) {
-      setIsFavorite(favorites.some((favorite: Gpt) => favorite.id === gptId));
-    }
-  }, [favorites, gptId]);
 
   useEffect(() => {
     // Update document title with GPT name
@@ -222,7 +228,7 @@ export default function GptPage() {
                             </div>
                             <div className="flex justify-between">
                               <span className="text-neutral-300">Criado em:</span>
-                              <span>{gpt.createdAt ? new Date(gpt.createdAt).toLocaleDateString('pt-BR') : 'N/A'}</span>
+                              <span>{new Date(gpt.createdAt).toLocaleDateString('pt-BR')}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-neutral-300">Visualizações:</span>

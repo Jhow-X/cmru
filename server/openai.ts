@@ -1,107 +1,50 @@
 import OpenAI from "openai";
-import fs from "fs";
-import path from "path";
 
+// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const DEFAULT_MODEL = "gpt-4o";
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
 
-/**
- * Faz upload de arquivos e cria um vector store com os arquivos.
- */
-export async function createVectorStoreFromFiles(
-  filePaths: string[],
-): Promise<string> {
-  try {
-    // 1. Upload dos arquivos
-    const uploadedFiles = await Promise.all(
-      filePaths.map(async (filePath) => {
-        const fileStream = fs.createReadStream(filePath);
-        const uploaded = await openai.files.create({
-          file: fileStream,
-          purpose: "assistants",
-        });
-        console.log(
-          `✅ Arquivo enviado: ${path.basename(filePath)} → ID: ${uploaded.id}`,
-        );
-        return uploaded.id;
-      }),
-    );
-
-    // 2. Criação do vector store com os arquivos enviados
-    const vectorStore = await openai.beta.vectorStores.create({
-      name: "Vector Store Jurídico",
-      file_ids: uploadedFiles,
-    });
-
-    console.log("✅ Vector Store criado:", vectorStore.id);
-    return vectorStore.id;
-  } catch (error) {
-    console.error("❌ Erro ao criar vector store:", error);
-    throw new Error("Falha ao criar vector store");
-  }
-}
-
-/**
- * Gera uma resposta do GPT com acesso ao vector store (contexto legal).
- */
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || "",
+});
+const mySecret = process.env["OPENAI_API_KEY"];
+console.log("My secret is: ", mySecret);
+// Function to generate a response from a GPT with custom configuration
 export async function generateGptResponse(
   message: string,
   systemInstructions: string,
   model: string = DEFAULT_MODEL,
   temperature: number = 70,
-  vectorStoreId?: string,
+  files: string[] = []
 ): Promise<string> {
   try {
-    // Criação de thread
-    const thread = await openai.beta.threads.create();
-
-    // Anexa mensagem do usuário
-    await openai.beta.threads.messages.create(thread.id, {
-      role: "user",
-      content: message,
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: model,
+      messages: [
+        {
+          role: "system",
+          content: systemInstructions + (files.length > 0 ? `\n\nArquivos de referência disponíveis: ${files.join(', ')}` : '')
+        },
+        {
+          role: "user",
+          content: message
+        }
+      ],
+      temperature: temperature / 100, // Convert 0-100 to 0-1
+      max_tokens: 2000,
     });
 
-    // Executa com contexto do vector store
-    const run = await openai.beta.threads.runs.create(thread.id, {
-      model,
-      temperature: temperature / 100,
-      instructions: systemInstructions,
-      tools: [{ type: "file_search" }],
-      vector_store_ids: vectorStoreId ? [vectorStoreId] : undefined,
-    });
-
-    // Aguardando conclusão
-    let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-    while (runStatus.status !== "completed" && runStatus.status !== "failed") {
-      await new Promise((res) => setTimeout(res, 1000));
-      runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-    }
-
-    if (runStatus.status === "failed")
-      throw new Error("A execução do GPT falhou.");
-
-    // Recupera mensagens da thread
-    const messages = await openai.beta.threads.messages.list(thread.id);
-    const responseMessage = messages.data.find(
-      (msg) => msg.role === "assistant",
-    );
-
-    return (
-      responseMessage?.content?.[0]?.text?.value ||
-      "Desculpe, não consegui gerar uma resposta."
-    );
+    return response.choices[0].message.content || "Desculpe, não consegui gerar uma resposta.";
   } catch (error) {
-    console.error("❌ Erro ao gerar resposta:", error);
-    throw new Error("Erro ao processar sua mensagem.");
+    console.error("Error generating GPT response:", error);
+    throw new Error("Erro ao processar sua mensagem. Tente novamente.");
   }
 }
 
-/**
- * Análise jurídica de documento.
- */
+// Function to analyze legal documents
 export async function analyzeLegalDocument(
-  documentPrompt: string,
-  vectorStoreId?: string,
+  documentText: string,
 ): Promise<string> {
   const systemPrompt = `
     Você é um assistente jurídico especializado na análise de documentos legais.
@@ -110,25 +53,17 @@ export async function analyzeLegalDocument(
     2. Possíveis problemas ou inconsistências
     3. Referências a leis e jurisprudência relevantes
     4. Recomendações para o magistrado
-
+    
     Forneça sua análise de forma estruturada e concisa.
   `;
-  return generateGptResponse(
-    documentPrompt,
-    systemPrompt,
-    DEFAULT_MODEL,
-    70,
-    vectorStoreId,
-  );
+
+  return generateGptResponse(systemPrompt, documentText);
 }
 
-/**
- * Redação de resposta jurídica com base em um caso.
- */
+// Function to draft legal responses
 export async function draftLegalResponse(
   caseDetails: string,
   responseType: string,
-  vectorStoreId?: string,
 ): Promise<string> {
   const systemPrompt = `
     Você é um assistente jurídico especializado na redação de documentos legais.
@@ -137,22 +72,12 @@ export async function draftLegalResponse(
     Estruture o documento conforme os padrões jurídicos brasileiros.
     Inclua citações de leis e jurisprudência relevantes quando apropriado.
   `;
-  return generateGptResponse(
-    caseDetails,
-    systemPrompt,
-    DEFAULT_MODEL,
-    70,
-    vectorStoreId,
-  );
+
+  return generateGptResponse(systemPrompt, caseDetails);
 }
 
-/**
- * Consulta por referências legais.
- */
-export async function getLegalReferences(
-  query: string,
-  vectorStoreId?: string,
-): Promise<string> {
+// Function to get legal references
+export async function getLegalReferences(query: string): Promise<string> {
   const systemPrompt = `
     Você é um assistente jurídico especializado em pesquisa legal.
     Sua tarefa é fornecer referências legais relevantes para a consulta fornecida, incluindo:
@@ -160,27 +85,22 @@ export async function getLegalReferences(
     2. Jurisprudência relevante
     3. Doutrinas e entendimentos predominantes
     4. Súmulas e orientações de tribunais superiores
-
+    
     Forneça sua resposta de forma estruturada e com citações precisas.
   `;
-  return generateGptResponse(
-    query,
-    systemPrompt,
-    DEFAULT_MODEL,
-    70,
-    vectorStoreId,
-  );
+
+  return generateGptResponse(systemPrompt, query);
 }
 
-/**
- * Lista os modelos disponíveis.
- */
+
+
 export async function getAvailableModels(): Promise<string[]> {
   try {
     const list = await openai.models.list();
     const models: string[] = [];
 
     for await (const model of list) {
+      // Filter to only include GPT models that are commonly used
       if (
         model.id.includes("gpt") &&
         !model.id.includes("instruct") &&
@@ -192,9 +112,11 @@ export async function getAvailableModels(): Promise<string[]> {
       }
     }
 
+    // Sort models with newest first
     return models.sort().reverse();
   } catch (error) {
     console.error("Erro ao obter modelos disponíveis:", error);
+    // Return fallback models if API fails
     return ["gpt-4o", "gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"];
   }
 }
@@ -205,5 +127,4 @@ export default {
   draftLegalResponse,
   getLegalReferences,
   getAvailableModels,
-  createVectorStoreFromFiles,
 };
