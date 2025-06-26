@@ -32,7 +32,7 @@ const storage = multer.diskStorage({
 });
 
 // Filtrar arquivos (apenas imagens)
-const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const imageFileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   // Verificar o tipo MIME do arquivo
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
   
@@ -45,12 +45,44 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilt
   }
 };
 
-// Configurar o uploader
+// Filtrar arquivos para documentos GPT
+const documentFileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  // Verificar o tipo MIME do arquivo
+  const allowedTypes = [
+    'application/pdf',
+    'text/plain',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    'application/msword', // .doc
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+    'application/vnd.ms-powerpoint', // .ppt
+    'text/csv',
+    'application/json'
+  ];
+  
+  if (allowedTypes.includes(file.mimetype)) {
+    // Aceitar o arquivo
+    cb(null, true);
+  } else {
+    // Rejeitar o arquivo
+    cb(new Error('Tipo de arquivo não suportado. Apenas documentos (PDF, TXT, DOCX, DOC, PPTX, PPT, CSV, JSON) são permitidos.'));
+  }
+};
+
+// Configurar o uploader para imagens
 const upload = multer({
   storage,
-  fileFilter,
+  fileFilter: imageFileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB
+  }
+});
+
+// Configurar o uploader para documentos
+export const documentUpload = multer({
+  storage,
+  fileFilter: documentFileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB para documentos
   }
 });
 

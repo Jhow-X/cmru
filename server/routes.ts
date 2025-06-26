@@ -13,7 +13,7 @@ import {
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import path from "path";
-import upload, { handleUploadError } from "./upload";
+import upload, { documentUpload, handleUploadError } from "./upload";
 
 // Auth middleware to check if user is authenticated
 function isAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -76,6 +76,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       size: req.file.size,
       message: 'Imagem enviada com sucesso'
     });
+  });
+
+  // Rota para upload de múltiplos arquivos para GPT
+  app.post('/api/upload/files', isAuthenticated, documentUpload.array('files', 10), handleUploadError, async (req: Request, res: Response) => {
+    try {
+      if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+        return res.status(400).json({ message: 'Nenhum arquivo enviado' });
+      }
+      
+      // Get file paths for uploaded files
+      const filePaths = req.files.map(file => file.path);
+      const fileNames = req.files.map(file => file.filename);
+      
+      // Optional: Create vector store with uploaded files using OpenAI
+      try {
+        const vectorStoreName = `gpt-files-${Date.now()}`;
+        const vectorStoreId = await openai.createVectorStore(vectorStoreName, filePaths);
+        
+        res.status(200).json({
+          message: 'Arquivos enviados e processados com sucesso',
+          filePaths: fileNames, // Return just filenames for storage in database
+          vectorStoreId,
+          files: req.files.map(file => ({
+            originalName: file.originalname,
+            filename: file.filename,
+            size: file.size,
+            mimetype: file.mimetype
+          }))
+        });
+      } catch (openaiError) {
+        console.error('Erro ao criar vector store:', openaiError);
+        // Still return success for file upload, even if vector store fails
+        res.status(200).json({
+          message: 'Arquivos enviados com sucesso (vector store não criado)',
+          filePaths: fileNames,
+          files: req.files.map(file => ({
+            originalName: file.originalname,
+            filename: file.filename,
+            size: file.size,
+            mimetype: file.mimetype
+          }))
+        });
+      }
+    } catch (error) {
+      console.error('Erro no upload de arquivos:', error);
+      res.status(500).json({ message: 'Erro ao enviar arquivos' });
+    }
   });
   
   // User routes

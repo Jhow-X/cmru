@@ -34,7 +34,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import { Category } from "@shared/schema";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, X, FileText } from "lucide-react";
 
 // Complete GPT creation schema (same as admin)
 const createGptSchema = z.object({
@@ -61,6 +61,8 @@ interface AddGptDialogProps {
 
 export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) {
   const { toast } = useToast();
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Fetch categories
   const { data: categories = [] } = useQuery<Category[]>({
@@ -91,6 +93,42 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
     },
   });
   
+  // File upload mutation
+  const uploadFilesMutation = useMutation({
+    mutationFn: async (files: File[]) => {
+      const formData = new FormData();
+      files.forEach((file, index) => {
+        formData.append(`files`, file);
+      });
+      
+      const response = await fetch("/api/upload/files", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error("Erro ao fazer upload dos arquivos");
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Update form with uploaded file paths
+      form.setValue("files", data.filePaths || []);
+      toast({
+        title: "Arquivos enviados",
+        description: `${uploadedFiles.length} arquivo(s) enviado(s) com sucesso.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro no upload",
+        description: error.message || "Não foi possível enviar os arquivos.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Create GPT mutation
   const createGptMutation = useMutation({
     mutationFn: async (data: CreateGptFormValues) => {
@@ -108,6 +146,7 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
       });
       onOpenChange(false);
       form.reset();
+      setUploadedFiles([]);
     },
     onError: (error: Error) => {
       toast({
@@ -118,8 +157,44 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
     },
   });
   
-  const onSubmit = (data: CreateGptFormValues) => {
-    createGptMutation.mutate(data);
+  // File handling functions
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setUploadedFiles(prev => [...prev, ...files]);
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    // Also remove from form if it was already uploaded
+    const currentFiles = form.getValues("files");
+    if (currentFiles && currentFiles.length > index) {
+      form.setValue("files", currentFiles.filter((_, i) => i !== index));
+    }
+  };
+
+  const uploadFiles = async () => {
+    if (uploadedFiles.length === 0) return;
+    
+    setIsUploading(true);
+    try {
+      await uploadFilesMutation.mutateAsync(uploadedFiles);
+    } catch (error) {
+      // Error handling is done in the mutation
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const onSubmit = async (data: CreateGptFormValues) => {
+    // Upload files first if there are any
+    if (uploadedFiles.length > 0 && !data.files?.length) {
+      await uploadFiles();
+      // Wait for the files to be uploaded and form to be updated
+      const updatedData = { ...data, files: form.getValues("files") };
+      createGptMutation.mutate(updatedData);
+    } else {
+      createGptMutation.mutate(data);
+    }
   };
   
   return (
@@ -245,26 +320,101 @@ export default function AddGptDialog({ open, onOpenChange }: AddGptDialogProps) 
               />
             </div>
             
-            <FormField
-              control={form.control}
-              name="files"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Arquivos (URLs separadas por vírgula)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="https://exemplo.com/arquivo1.pdf, https://exemplo.com/arquivo2.txt"
-                      value={field.value?.join(', ') || ''}
-                      onChange={(e) => {
-                        const urls = e.target.value.split(',').map(url => url.trim()).filter(url => url);
-                        field.onChange(urls);
-                      }}
+            {/* File Upload Section */}
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Arquivos de Referência
+                </label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Faça upload de documentos PDF, TXT ou DOCX para criar um banco de conhecimento para o GPT
+                </p>
+              </div>
+              
+              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6">
+                <div className="text-center">
+                  <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
+                  <div className="mt-4">
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <span className="mt-2 block text-sm font-medium text-foreground">
+                        Clique para selecionar arquivos
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        PDF, TXT, DOCX até 10MB cada
+                      </span>
+                    </label>
+                    <input
+                      id="file-upload"
+                      type="file"
+                      multiple
+                      accept=".pdf,.txt,.docx,.doc"
+                      onChange={handleFileSelect}
+                      className="hidden"
                     />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+                  </div>
+                </div>
+              </div>
+
+              {/* File List */}
+              {uploadedFiles.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Arquivos Selecionados:</h4>
+                  {uploadedFiles.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 bg-muted rounded-md"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <FileText className="h-4 w-4" />
+                        <span className="text-sm">{file.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  
+                  {uploadedFiles.length > 0 && !form.getValues("files")?.length && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={uploadFiles}
+                      disabled={isUploading}
+                      className="w-full"
+                    >
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Enviando arquivos...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          Enviar Arquivos ({uploadedFiles.length})
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
               )}
-            />
+
+              {/* Show uploaded files status */}
+              {form.getValues("files")?.length > 0 && (
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
+                  <p className="text-sm text-green-600 dark:text-green-400">
+                    ✓ {form.getValues("files").length} arquivo(s) enviado(s) com sucesso
+                  </p>
+                </div>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
