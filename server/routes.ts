@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
-import openai, { getAvailableModels, generateGptResponse } from "./openai";
+import { getAvailableModels, generateGptResponse } from "./openai";
 import { 
   insertGptSchema, 
   insertFavoriteSchema, 

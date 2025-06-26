@@ -205,47 +205,47 @@ export default function ChatPage() {
                   )}
               </div>
             </ScrollArea>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Chat Area */}
-        <Card className="lg:col-span-3 flex flex-col">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback>
-                    <Bot className="h-4 w-4" />
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <CardTitle className="text-lg">
-                    {selectedGpt ? selectedGpt.title : "Selecione um agente"}
-                  </CardTitle>
-                  {selectedGpt && (
-                    <p className="text-sm text-muted-foreground">
-                      {selectedGpt.description}
-                    </p>
-                  )}
-                </div>
-              </div>
-              {selectedGpt && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearChat}
-                    disabled={clearMessagesMutation.isPending}
-                  >
-                    {clearMessagesMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4" />
+          {/* Chat Area */}
+          <Card className="lg:col-span-3 flex flex-col">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback>
+                      <Bot className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <CardTitle className="text-lg">
+                      {selectedGpt ? selectedGpt.title : "Selecione um agente"}
+                    </CardTitle>
+                    {selectedGpt && (
+                      <p className="text-sm text-muted-foreground">
+                        {selectedGpt.description}
+                      </p>
                     )}
-                    Limpar
-                  </Button>
+                  </div>
                 </div>
-              )}
+                {selectedGpt && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearChat}
+                      disabled={clearMessagesMutation.isPending}
+                    >
+                      {clearMessagesMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                      Limpar
+                    </Button>
+                  </div>
+                )}
             </div>
           </CardHeader>
           

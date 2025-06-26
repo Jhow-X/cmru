@@ -1,130 +1,123 @@
 import OpenAI from "openai";
+import fs from "fs";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const DEFAULT_MODEL = "gpt-4o";
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "",
-});
-const mySecret = process.env["OPENAI_API_KEY"];
-console.log("My secret is: ", mySecret);
-// Function to generate a response from a GPT with custom configuration
+// Generate GPT response using the chat completions API
 export async function generateGptResponse(
-  message: string,
-  systemInstructions: string,
+  prompt: string,
+  systemInstructions: string = "Você é um assistente jurídico especializado em direito brasileiro.",
   model: string = DEFAULT_MODEL,
-  temperature: number = 70,
+  temperature: number = 0.7,
   files: string[] = []
 ): Promise<string> {
   try {
-    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    let context = "";
+    
+    // If files are provided, read them for context
+    if (files && files.length > 0) {
+      context = await getFileContext(files);
+    }
+
+    const messages = [
+      { role: "system", content: systemInstructions },
+      ...(context ? [{ role: "system", content: `Contexto adicional dos documentos:\n${context}` }] : []),
+      { role: "user", content: prompt }
+    ];
+
     const response = await openai.chat.completions.create({
-      model: model,
-      messages: [
-        {
-          role: "system",
-          content: systemInstructions + (files.length > 0 ? `\n\nArquivos de referência disponíveis: ${files.join(', ')}` : '')
-        },
-        {
-          role: "user",
-          content: message
-        }
-      ],
-      temperature: temperature / 100, // Convert 0-100 to 0-1
+      model,
+      messages: messages as any,
+      temperature: temperature / 100, // Convert percentage to decimal
       max_tokens: 2000,
     });
 
-    return response.choices[0].message.content || "Desculpe, não consegui gerar uma resposta.";
+    return response.choices[0]?.message?.content || "Desculpe, não consegui processar sua solicitação.";
   } catch (error) {
-    console.error("Error generating GPT response:", error);
-    throw new Error("Erro ao processar sua mensagem. Tente novamente.");
+    console.error("Erro na API OpenAI:", error);
+    throw new Error("Falha ao gerar resposta. Verifique sua conexão e tente novamente.");
   }
 }
 
-// Function to analyze legal documents
-export async function analyzeLegalDocument(
-  documentText: string,
-): Promise<string> {
-  const systemPrompt = `
-    Você é um assistente jurídico especializado na análise de documentos legais.
-    Sua tarefa é analisar o documento fornecido e extrair:
-    1. Principais pontos legais
-    2. Possíveis problemas ou inconsistências
-    3. Referências a leis e jurisprudência relevantes
-    4. Recomendações para o magistrado
-    
-    Forneça sua análise de forma estruturada e concisa.
-  `;
-
-  return generateGptResponse(systemPrompt, documentText);
+// Helper function to read file context
+async function getFileContext(filePaths: string[]): Promise<string> {
+  try {
+    const contexts = await Promise.all(
+      filePaths.map(async (filePath) => {
+        try {
+          const content = fs.readFileSync(filePath, 'utf-8');
+          return `=== ${filePath} ===\n${content}\n`;
+        } catch (error) {
+          console.warn(`Não foi possível ler o arquivo: ${filePath}`);
+          return "";
+        }
+      })
+    );
+    return contexts.join('\n');
+  } catch (error) {
+    console.error("Erro ao ler contexto dos arquivos:", error);
+    return "";
+  }
 }
 
-// Function to draft legal responses
+// Analyze legal document
+export async function analyzeLegalDocument(
+  documentContent: string,
+  analysisType: string = "general"
+): Promise<string> {
+  const systemPrompt = `Você é um especialista em análise jurídica. Analise o documento fornecido e forneça insights relevantes sobre:
+- Aspectos legais principais
+- Possíveis problemas ou inconsistências
+- Recomendações práticas
+- Referências legais aplicáveis`;
+
+  const userPrompt = `Tipo de análise: ${analysisType}\n\nDocumento:\n${documentContent}`;
+
+  return await generateGptResponse(userPrompt, systemPrompt);
+}
+
+// Draft legal response
 export async function draftLegalResponse(
   caseDetails: string,
-  responseType: string,
+  responseType: string = "formal"
 ): Promise<string> {
-  const systemPrompt = `
-    Você é um assistente jurídico especializado na redação de documentos legais.
-    Sua tarefa é redigir um(a) ${responseType} com base nos detalhes do caso fornecido.
-    Use linguagem formal e jurídica apropriada.
-    Estruture o documento conforme os padrões jurídicos brasileiros.
-    Inclua citações de leis e jurisprudência relevantes quando apropriado.
-  `;
+  const systemPrompt = `Você é um assistente jurídico especializado em redigir documentos legais. 
+  Crie uma resposta profissional baseada nos detalhes do caso fornecidos. 
+  Use linguagem jurídica apropriada e estruture a resposta de forma clara e profissional.`;
 
-  return generateGptResponse(systemPrompt, caseDetails);
+  const userPrompt = `Tipo de resposta: ${responseType}\n\nDetalhes do caso:\n${caseDetails}`;
+
+  return await generateGptResponse(userPrompt, systemPrompt);
 }
 
-// Function to get legal references
+// Get legal references
 export async function getLegalReferences(query: string): Promise<string> {
-  const systemPrompt = `
-    Você é um assistente jurídico especializado em pesquisa legal.
-    Sua tarefa é fornecer referências legais relevantes para a consulta fornecida, incluindo:
-    1. Leis e códigos aplicáveis
-    2. Jurisprudência relevante
-    3. Doutrinas e entendimentos predominantes
-    4. Súmulas e orientações de tribunais superiores
-    
-    Forneça sua resposta de forma estruturada e com citações precisas.
-  `;
+  const systemPrompt = `Você é um especialista em direito brasileiro. Forneça referências legais relevantes, 
+  incluindo leis, códigos, jurisprudências e doutrinas aplicáveis à consulta.`;
 
-  return generateGptResponse(systemPrompt, query);
+  return await generateGptResponse(query, systemPrompt);
 }
 
-
-
+// Get available models
 export async function getAvailableModels(): Promise<string[]> {
   try {
-    const list = await openai.models.list();
-    const models: string[] = [];
-
-    for await (const model of list) {
-      // Filter to only include GPT models that are commonly used
-      if (
-        model.id.includes("gpt") &&
-        !model.id.includes("instruct") &&
-        !model.id.includes("babbage") &&
-        !model.id.includes("ada") &&
-        !model.id.includes("davinci")
-      ) {
-        models.push(model.id);
-      }
-    }
-
-    // Sort models with newest first
-    return models.sort().reverse();
+    const models = await openai.models.list();
+    return models.data
+      .filter(model => model.id.includes('gpt'))
+      .map(model => model.id)
+      .sort();
   } catch (error) {
-    console.error("Erro ao obter modelos disponíveis:", error);
-    // Return fallback models if API fails
-    return ["gpt-4o", "gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"];
+    console.error("Erro ao buscar modelos:", error);
+    return [DEFAULT_MODEL];
   }
 }
 
-export default {
-  generateGptResponse,
-  analyzeLegalDocument,
-  draftLegalResponse,
-  getLegalReferences,
-  getAvailableModels,
-};
+// Create vector store from files (simplified version)
+export async function createVectorStoreFromFiles(filePaths: string[]): Promise<string> {
+  // For now, we'll return a placeholder since the vector store API is complex
+  // In a production environment, you would implement proper vector store creation
+  console.log("Arquivos para vector store:", filePaths);
+  return "vector-store-placeholder";
+}
